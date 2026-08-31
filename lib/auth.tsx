@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(() => {
     const googleUser: StoredUser = {
       id: `g-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
-      name: "Google User",
+      name: "",
       email: "demo@gmail.com",
       password: "",
     };

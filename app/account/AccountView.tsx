@@ -37,11 +37,17 @@ export default function AccountView() {
       </div>
 
       <h1 className="mt-4 font-display text-4xl font-normal uppercase leading-[0.95] tracking-tight text-ink sm:text-5xl">
-        {t("auth.welcome", { name: user.name })}
+        {user.name
+          ? t("auth.welcome", { name: user.name })
+          : t("auth.welcomeGeneric")}
       </h1>
 
       <div className="mt-8 rounded-[18px] border border-hairline-soft bg-canvas p-6 sm:p-8">
-        <p className="text-sm text-mute">{t("auth.signedInAs", { name: user.name })}</p>
+        <p className="text-sm text-mute">
+          {user.name
+            ? t("auth.signedInAs", { name: user.name })
+            : t("auth.signedInAsGeneric")}
+        </p>
         <p className="mt-1 text-base font-medium text-ink" data-testid="account-email">
           {user.email}
         </p>
