@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand & accent */
+  --color-ink: #111111;
+  --color-on-primary: #ffffff;
+  --color-canvas: #ffffff;
+  --color-soft-cloud: #f5f5f5;
+
+  /* Text */
+  --color-charcoal: #39393b;
+  --color-ash: #4b4b4d;
+  --color-mute: #707072;
+  --color-stone: #9e9ea0;
+
+  /* Hairlines */
+  --color-hairline: #cacacb;
+  --color-hairline-soft: #e5e5e5;
+
+  /* Semantic */
+  --color-sale: #d30005;
+  --color-sale-deep: #780700;
+  --color-success: #007d48;
+  --color-success-bright: #1eaa52;
+  --color-info: #1151ff;
+  --color-info-deep: #0034e3;
+
+  /* Category accents (swatch dots / soft editorial moments only) */
+  --color-accent-pink: #ed1aa0;
+  --color-accent-pink-soft: #ffb0dd;
+  --color-accent-purple-soft: #beaffd;
+  --color-accent-purple-pale: #d6d1ff;
+  --color-accent-teal: #0a7281;
+  --color-accent-pink-deep: #4c012d;
+
+  /* Radius scale */
+  --radius-sm: 18px;
+  --radius-md: 24px;
+  --radius-lg: 30px;
+
+  /* Fonts */
+  --font-display: var(--font-abyss-display), Anton, Impact, sans-serif;
+  --font-sans: var(--font-abyss-ui), "Helvetica Now TT", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-on-primary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cacacb transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #cacacb;
+}
+
+img,
+svg {
+  user-select: none;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility press {
+  --press-duration: 180ms;
+  --press-ease: ease;
+
+  cursor: pointer;
+  user-select: none;
+  transition-property: transform, opacity, background-color, border-color,
+    color, box-shadow;
+  transition-duration: var(--press-duration);
+  transition-timing-function: var(--press-ease);
+
+  &:hover:not(:disabled) {
+    transform: scale(1.02);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+@utility focus-kill {
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+/* Layered so utility classes (e.g. outline-none, outline-transparent) can
+   still override these defaults where a component wants a custom focus
+   treatment (like the nav search field's focus-within border). */
+@layer base {
+  /* Every focusable control gets a visible keyboard ring, so nothing
+     interactive is ever left without one (per-component focus-kill is the
+     primary source; this is the safety net for shared/native controls). */
+  :where(button, [role="button"], a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  /* Pointer cursor on all clickable controls, and an explicit not-allowed +
+     faded look for anything disabled. */
+  :where(button, [role="button"], select:not(:disabled), label[for], summary) {
+    cursor: pointer;
+  }
+  :disabled {
+    cursor: not-allowed;
+  }
+
+  /* Placeholders are intentionally light but still legible on canvas. */
+  ::placeholder {
+    color: var(--color-stone);
+    opacity: 1;
+  }
+}
