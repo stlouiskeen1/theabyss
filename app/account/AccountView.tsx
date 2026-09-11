@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
-import { useOrders } from "@/lib/orders";
+import { toOrder, type Order } from "@/lib/orders";
 import { formatPrice } from "@/lib/mock";
 import { useWishlist } from "@/lib/wishlist";
 import { ButtonLink } from "@/components/ui";
+import type { Json } from "@/types/database.types";
 
 function Kicker({ label }: { label: string }) {
   return (
@@ -38,8 +39,35 @@ export default function AccountView() {
   const { t } = useLang();
   const { user, signOut, loading } = useAuth();
   const { ids } = useWishlist();
-  const { orders } = useOrders();
   const router = useRouter();
+
+  const [accountOrders, setAccountOrders] = useState<Order[]>([]);
+  const [ordersReady, setOrdersReady] = useState(false);
+  const [ordersError, setOrdersError] = useState(false);
+
+  // Order history comes from the Auth0-gated /api/account/orders route, which
+  // returns only the rows stamped with this session's sub.
+  const loadOrders = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch("/api/account/orders", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as Json[];
+      const list = data
+        .map(toOrder)
+        .filter((o): o is Order => o !== null);
+      setAccountOrders(list);
+    } catch {
+      setOrdersError(true);
+    } finally {
+      setOrdersReady(true);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => void loadOrders(), 0);
+    return () => clearTimeout(timer);
+  }, [loadOrders]);
 
   // The session is fetched from `/auth/profile` right after mount (see
   // lib/auth). Once it settles, send logged-out visitors to the sign-in page.
@@ -123,36 +151,34 @@ export default function AccountView() {
                 {t("account.orderPlaceholder")}
               </p>
             </div>
-            {orders
-              .filter(
-                (o) =>
-                  o.customer.name.toLowerCase() ===
-                  (user?.name ?? "").trim().toLowerCase()
-              )
-              .map((o) => (
-                <div
-                  key={o.id}
-                  className="flex items-center justify-between gap-unit-md border-b border-border-rule py-unit-sm"
-                >
-                  <div className="flex flex-col gap-unit-2xs">
-                    <span className="font-mono-technical text-mono-technical font-bold uppercase text-primary">
-                      {o.ref}
-                    </span>
-                    <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-text-muted">
-                      {t(`ops.status.${o.status}` as "ops.status.placed")} ·{" "}
-                      {formatPrice(o.subtotal + o.deliveryFee)}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end gap-unit-2xs">
-                    <span className="font-mono-technical text-mono-technical font-bold tabular-nums text-primary">
-                      {formatPrice(o.total)}
-                    </span>
-                    <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-text-muted">
-                      {o.items.reduce((n, i) => n + i.qty, 0)}×
-                    </span>
-                  </div>
+            {ordersReady && ordersError ? (
+              <p className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-accent-crimson">
+                {t("account.ordersError")}
+              </p>
+            ) : accountOrders.map((o) => (
+              <div
+                key={o.id}
+                className="flex items-center justify-between gap-unit-md border-b border-border-rule py-unit-sm"
+              >
+                <div className="flex flex-col gap-unit-2xs">
+                  <span className="font-mono-technical text-mono-technical font-bold uppercase text-primary">
+                    {o.ref}
+                  </span>
+                  <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-text-muted">
+                    {t(`ops.status.${o.status}` as "ops.status.placed")} ·{" "}
+                    {formatPrice(o.subtotal + o.deliveryFee)}
+                  </span>
                 </div>
-              ))}
+                <div className="flex flex-col items-end gap-unit-2xs">
+                  <span className="font-mono-technical text-mono-technical font-bold tabular-nums text-primary">
+                    {formatPrice(o.total)}
+                  </span>
+                  <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-text-muted">
+                    {o.items.reduce((n, i) => n + i.qty, 0)}×
+                  </span>
+                </div>
+              </div>
+            ))}
             <ButtonLink href="/category/all" variant="primary" className="w-full">
               {t("account.ordersCta")}
             </ButtonLink>

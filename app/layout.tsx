@@ -41,14 +41,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <LanguageProvider>
           <CartProvider>
             <WishlistProvider>
-              <OrdersProvider>
-                <AuthProvider>
+              <AuthProvider>
+                <OrdersProvider>
                   <Nav />
                   <main className="flex flex-1 flex-col pt-16 sm:pt-24">{children}</main>
                   <Footer />
                   <CartDrawer />
-                </AuthProvider>
-              </OrdersProvider>
+                </OrdersProvider>
+              </AuthProvider>
             </WishlistProvider>
           </CartProvider>
         </LanguageProvider>

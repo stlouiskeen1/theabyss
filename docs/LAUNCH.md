@@ -12,28 +12,35 @@ CIB / Satim / Edahabia path is removed, not wired.
 
 - [x] Commit the full working tree
 - [x] GitHub remote (`origin` → `stlouiskeen1/theabyss`) in sync
-- [ ] Add CI — `.github/workflows/ci.yml` (lint + `tsc --noEmit` + build)
-- [ ] First green CI run on `master`
+- [x] Add CI — `.github/workflows/ci.yml` (lint + `tsc --noEmit` + build)
+- [x] First green CI run on `master`
 
 ## Phase 1 — Close the security holes (SHIP-BLOCKER)
 
-The storefront currently can read **every order's PII** via the public anon key
-and any visitor can cancel/advance any order. Fix:
+The storefront previously could read **every order's PII** via the public anon key
+and any visitor could cancel/advance/delete orders. Fixed:
 
-- [ ] Migration `0008`: `revoke execute` on `order_list_all`, `order_advance`,
-      `order_cancel`, `order_set_collected` from `anon`, `authenticated`,
-      `public`; `grant execute` to `service_role` only. Push + `gen types`.
-- [ ] Storefront stops calling `order_list_all` on every page load
-      (`lib/orders.tsx` provider effect + `refresh`).
-- [ ] `/api/ops/orders` (list), `/api/ops/orders/[id]` (advance / cancel /
-      collected) — Auth0-session-gated, `service_role` Supabase client,
-      admin check (env allowlist `AUTH0_ADMIN_EMAILS`).
-- [ ] `/api/account/orders` — Auth0-session-gated, returns only the caller's
+- [x] Migration `0008`: `revoke execute` on `order_list_all`, `order_advance`,
+      `order_cancel`, `order_set_collected`, `order_list_own`,
+      `order_list_by_sub` from `anon`, `authenticated`, `public`;
+      `grant execute` to `service_role` only. Push + `gen types`.
+- [x] Migration `0009`: **direct table lockdown** — RLS re-asserted on every
+      `public` table + all `anon`/`authenticated` table/sequence privileges
+      revoked. (Found live: anon could `DELETE /rest/v1/orders` and read
+      `order_items`/`payments`/`profiles`; verified → 401 after 0009.)
+- [x] Storefront stops calling `order_list_all` on every page load
+      (`lib/orders.tsx` provider effect + `refresh` removed).
+- [x] `/api/ops` (GET list / POST advance·cancel·collect) — Auth0-session-gated,
+      `service_role` Supabase client, admin check (env allowlist
+      `AUTH0_ADMIN_EMAILS`).
+- [x] `/api/account/orders` — Auth0-session-gated, returns only the caller's
       orders (match by Auth0 `sub`, stored at checkout).
-- [ ] `/ops` page guarded server-side (`withPageAuthRequired` + admin check).
-      Passcode `"abyss"` deleted.
-- [ ] Account history no longer matches orders by customer name.
-- [ ] `order_place` stores the Auth0 `sub` (when logged in) for ownership.
+- [x] `/ops` page guarded server-side (redirects to `/account/login` without a
+      session). Passcode `"abyss"` deleted.
+- [x] Account history no longer matches orders by customer name.
+- [x] `order_place` stores the Auth0 `sub` (when logged in) for ownership.
+- [ ] **Owner action**: add `SUPABASE_SERVICE_ROLE_KEY` + `AUTH0_ADMIN_EMAILS`
+      to `.env.local` (fails closed until then).
 
 ## Phase 2 — COD-only checkout
 
