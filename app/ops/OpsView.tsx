@@ -1,19 +1,18 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { useOrders, OPEN_STATUSES, type Order } from "@/lib/orders";
+import { useOrders, OPEN_STATUSES, toOrder, type Order } from "@/lib/orders";
 import { useLang } from "@/lib/i18n";
 import { formatPrice } from "@/lib/mock";
 import { wilayaName } from "@/lib/wilayas";
-import { Button, LockIcon } from "@/components/ui";
-
-const PASSCODE = "abyss";
-const UNLOCKED_KEY = "abyss-ops-unlocked";
+import { Button, ButtonLink } from "@/components/ui";
+import type { Json } from "@/types/database.types";
 
 function Kicker({ label }: { label: string }) {
   return (
@@ -77,9 +76,22 @@ function Row({
   );
 }
 
-function OrderCard({ order, seq }: { order: Order; seq: number }) {
+function OrderCard({
+  order,
+  seq,
+  busy,
+  onAdvance,
+  onCancel,
+  onCollect,
+}: {
+  order: Order;
+  seq: number;
+  busy: boolean;
+  onAdvance: () => void;
+  onCancel: () => void;
+  onCollect: () => void;
+}) {
   const { t } = useLang();
-  const { advance, cancel, markCollected } = useOrders();
   const open = OPEN_STATUSES.includes(order.status);
 
   const bundles = order.items.reduce<
@@ -189,9 +201,10 @@ function OrderCard({ order, seq }: { order: Order; seq: number }) {
         <div className="flex flex-col gap-unit-xs border-t border-border-rule pt-unit-md sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
-            onClick={() => markCollected(order.id, !order.collected)}
+            disabled={busy}
+            onClick={onCollect}
             aria-pressed={order.collected}
-            className={`press focus-kill h-11 whitespace-nowrap px-unit-md font-label-caps text-label-caps uppercase tracking-wider transition-colors ${
+            className={`press focus-kill h-11 whitespace-nowrap px-unit-md font-label-caps text-label-caps uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               order.collected
                 ? "bg-status-cod text-surface-canvas"
                 : "bg-surface-paper text-primary ring-1 ring-border-rule hover:ring-primary"
@@ -203,16 +216,18 @@ function OrderCard({ order, seq }: { order: Order; seq: number }) {
             <Button
               type="button"
               variant="secondary"
+              disabled={busy}
               className="h-11 flex-1 px-unit-md sm:flex-none"
-              onClick={() => cancel(order.id)}
+              onClick={onCancel}
             >
               {t("ops.cancelOrder")}
             </Button>
             <Button
               type="button"
               variant="primary"
+              disabled={busy}
               className="h-11 flex-1 px-unit-md sm:flex-none"
-              onClick={() => advance(order.id)}
+              onClick={onAdvance}
             >
               {t("ops.advance")}
             </Button>
@@ -231,35 +246,114 @@ function OrderCard({ order, seq }: { order: Order; seq: number }) {
   );
 }
 
+type DeskState =
+  | { kind: "loading" }
+  | { kind: "error"; status: number; message: string }
+  | { kind: "ready"; orders: Order[] };
+
 export default function OpsView() {
   const { t } = useLang();
-  const { orders } = useOrders();
-  const [unlocked, setUnlocked] = useState(
-    () => typeof window !== "undefined" && sessionStorage.getItem(UNLOCKED_KEY) === "1"
-  );
-  const [code, setCode] = useState("");
-  const [denied, setDenied] = useState(false);
+  const { orders: localOrders, advance, cancel, markCollected } = useOrders();
+  const [state, setState] = useState<DeskState>({ kind: "loading" });
   const [filter, setFilter] = useState<"all" | "open" | "collected">("all");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (code.trim().toLowerCase() === PASSCODE) {
-      setDenied(false);
-      setUnlocked(true);
-      if (typeof window !== "undefined")
-        sessionStorage.setItem(UNLOCKED_KEY, "1");
-    } else {
-      setDenied(true);
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ops", { cache: "no-store" });
+      if (!res.ok) {
+        let message = `HTTP ${res.status}`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) message = body.error;
+        } catch {
+          /* keep fallback message */
+        }
+        setState({ kind: "error", status: res.status, message });
+        return;
+      }
+      const data = (await res.json()) as Json[];
+      const list = data
+        .map(toOrder)
+        .filter((o): o is Order => o !== null);
+      setState({ kind: "ready", orders: list });
+    } catch (e) {
+      setState({ kind: "error", status: 0, message: (e as Error).message });
     }
-  };
+  }, []);
 
-  const lock = () => {
-    setUnlocked(false);
-    setDenied(false);
-    setCode("");
-    if (typeof window !== "undefined")
-      sessionStorage.removeItem(UNLOCKED_KEY);
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timer);
+  }, [load]);
+
+  const run = useCallback(
+    async (fn: () => Promise<void>) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await fn();
+        await load();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, load]
+  );
+
+  if (state.kind === "error") {
+    const body =
+      state.status === 403
+        ? t("ops.notAdmin")
+        : `${t("ops.adminsOnly")} — ${state.message}`;
+    return (
+      <div className="w-full px-margin-mobile py-unit-lg sm:px-margin-desktop sm:py-unit-2xl">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-unit-md border border-border-rule bg-surface-container-low p-unit-xl">
+          <Kicker label={t("ops.kicker")} />
+          <h1 className="font-headline-lg text-headline-lg tracking-tight text-primary">
+            {t("ops.title")}
+          </h1>
+          <p className="font-body-editorial text-body-editorial text-text-muted max-w-xl">
+            {body}
+          </p>
+          <div className="flex flex-wrap gap-unit-xs pt-unit-sm">
+            {state.status === 401 ? (
+              <ButtonLink href="/account/login" variant="primary">
+                {t("ops.signIn")}
+              </ButtonLink>
+            ) : (
+              <Button type="button" variant="primary" onClick={() => void load()}>
+                {t("ops.retry")}
+              </Button>
+            )}
+            <ButtonLink href="/" variant="ghost">
+              {t("ops.backToStore")} →
+            </ButtonLink>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.kind === "loading") {
+    return (
+      <div className="w-full px-margin-mobile py-unit-lg sm:px-margin-desktop sm:py-unit-2xl">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-unit-lg">
+          <div className="border-b border-border-rule pb-unit-lg">
+            <Kicker label={t("ops.kicker")} />
+            <h1 className="font-headline-lg text-headline-lg tracking-tight text-primary">
+              {t("ops.title")}
+            </h1>
+            <p className="font-body-editorial text-body-editorial text-text-muted">
+              {t("ops.loading")}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const orders = state.orders.length > 0 ? state.orders : localOrders;
 
   const visible = orders.filter((o) => {
     if (filter === "open") return OPEN_STATUSES.includes(o.status);
@@ -272,7 +366,7 @@ export default function OpsView() {
   const codVolume = orders
     .filter((o) => OPEN_STATUSES.includes(o.status))
     .reduce((sum, o) => sum + o.total, 0);
-  const collected = orders
+  const collectedTotal = orders
     .filter((o) => o.collected)
     .reduce((sum, o) => sum + o.total, 0);
 
@@ -289,113 +383,68 @@ export default function OpsView() {
               {t("ops.subtitle", { n: String(openCount) })}
             </p>
           </div>
-          {unlocked ? (
-            <Button type="button" variant="ghost" className="h-11 px-unit-md" onClick={lock}>
-              {t("ops.lock")}
-            </Button>
-          ) : null}
+          <Button type="button" variant="ghost" className="h-11 px-unit-md" onClick={() => void load()}>
+            {t("ops.refresh")}
+          </Button>
         </div>
 
-        {!unlocked ? (
+        <div className="grid grid-cols-2 gap-unit-sm lg:grid-cols-4">
+          <Kpi label={t("ops.openOrders")} value={String(openCount)} />
+          <Kpi label={t("ops.waitingDelivery")} value={String(inTransit)} />
+          <Kpi label={t("ops.codVolume")} value={formatPrice(codVolume)} />
+          <Kpi label={t("ops.collectedNow")} value={formatPrice(collectedTotal)} />
+        </div>
+
+        <div className="flex flex-wrap gap-unit-xs">
+          {(
+            [
+              ["all", t("ops.placedAll")],
+              ["open", t("ops.filterOpen")],
+              ["collected", t("ops.filterCollected")],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={filter === key}
+              onClick={() => setFilter(key)}
+              className={`press focus-kill h-10 whitespace-nowrap px-unit-md font-label-caps text-label-caps uppercase tracking-wider transition-colors ${
+                filter === key
+                  ? "bg-border-dark text-surface-paper"
+                  : "bg-surface-paper text-primary ring-1 ring-border-rule hover:bg-surface-container-high"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {visible.length === 0 ? (
           <div className="flex flex-col gap-unit-md border border-border-rule bg-surface-container-low p-unit-xl">
-            <div className="flex items-start gap-unit-md">
-              <span className="mt-1 inline-flex h-9 w-9 items-center justify-center border border-border-rule bg-surface-paper text-primary">
-                <LockIcon className="h-4 w-4" />
-              </span>
-              <div className="flex flex-col gap-unit-2xs">
-                <h2 className="font-headline-sm text-headline-sm tracking-tight text-primary">
-                  {t("ops.loginTitle")}
-                </h2>
-                <p className="font-body-editorial text-body-editorial text-text-muted max-w-xl">
-                  {t("ops.loginBody")}
-                </p>
-              </div>
-            </div>
-            <form className="flex flex-col gap-unit-sm sm:max-w-sm" onSubmit={submit}>
-              <label
-                htmlFor="ops-passcode"
-                className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-text-muted"
-              >
-                {t("ops.passcodeLabel")}
-              </label>
-              <input
-                id="ops-passcode"
-                type="password"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder={t("ops.passcodePlaceholder")}
-                aria-invalid={denied}
-                className={`h-12 bg-surface-paper px-unit-md font-mono-technical text-mono-technical uppercase text-primary focus:outline-none focus:bg-surface-container-high transition-colors ${
-                  denied ? "ring-1 ring-accent-crimson" : "ring-1 ring-border-rule"
-                }`}
-              />
-              {denied ? (
-                <p className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-accent-crimson">
-                  {t("ops.denied")}
-                </p>
-              ) : (
-                <p className="font-mono-technical text-mono-technical text-text-muted">
-                  {t("ops.passHint")}
-                </p>
-              )}
-              <Button type="submit" variant="primary">
-                {t("ops.unlock")}
-              </Button>
-            </form>
+            <p className="font-headline-sm text-headline-sm tracking-tight text-primary">
+              {t("ops.empty")}
+            </p>
+            <Link
+              href="/"
+              className="font-label-caps text-label-caps uppercase tracking-wider text-primary underline underline-offset-4"
+            >
+              {t("ops.backToStore")} →
+            </Link>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-unit-sm lg:grid-cols-4">
-              <Kpi label={t("ops.openOrders")} value={String(openCount)} />
-              <Kpi label={t("ops.waitingDelivery")} value={String(inTransit)} />
-              <Kpi label={t("ops.codVolume")} value={formatPrice(codVolume)} />
-              <Kpi label={t("ops.collectedNow")} value={formatPrice(collected)} />
-            </div>
-
-            <div className="flex flex-wrap gap-unit-xs">
-              {(
-                [
-                  ["all", t("ops.placedAll")],
-                  ["open", t("ops.filterOpen")],
-                  ["collected", t("ops.filterCollected")],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={filter === key}
-                  onClick={() => setFilter(key)}
-                  className={`press focus-kill h-10 whitespace-nowrap px-unit-md font-label-caps text-label-caps uppercase tracking-wider transition-colors ${
-                    filter === key
-                      ? "bg-border-dark text-surface-paper"
-                      : "bg-surface-paper text-primary ring-1 ring-border-rule hover:bg-surface-container-high"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {visible.length === 0 ? (
-              <div className="flex flex-col gap-unit-md border border-border-rule bg-surface-container-low p-unit-xl">
-                <p className="font-headline-sm text-headline-sm tracking-tight text-primary">
-                  {t("ops.empty")}
-                </p>
-                <Link
-                  href="/"
-                  className="font-label-caps text-label-caps uppercase tracking-wider text-primary underline underline-offset-4"
-                >
-                  {t("ops.backToStore")} →
-                </Link>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-unit-md">
-                {visible.map((order, i) => (
-                  <OrderCard key={order.id} order={order} seq={i + 1} />
-                ))}
-              </div>
-            )}
-          </>
+          <div className="flex flex-col gap-unit-md">
+            {visible.map((order, i) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                seq={i + 1}
+                busy={busy}
+                onAdvance={() => void run(() => advance(order.id))}
+                onCancel={() => void run(() => cancel(order.id))}
+                onCollect={() => void run(() => markCollected(order.id, !order.collected))}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

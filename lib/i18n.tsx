@@ -534,6 +534,8 @@ const en = {
   "account.orderItems": "Item {n} · {seller}",
   "account.orderPlaceholder":
     "Your orders are shown here as soon as the concierge desk confirms them by phone.",
+  "account.ordersError":
+    "Couldn’t load your order history. Check your connection and reload.",
 
   "ops.status.placed": "Order Placed",
   "ops.status.confirmed": "Confirmed by Phone",
@@ -583,6 +585,15 @@ const en = {
   "ops.filterOpen": "Open",
   "ops.filterCollected": "Collected",
   "ops.cabinLabel": "CAB {seq}",
+
+  "ops.loading": "Syncing the fulfilment board…",
+  "ops.refresh": "Refresh",
+  "ops.retry": "Retry",
+  "ops.signIn": "Sign in",
+  "ops.deskError": "The desk can’t reach the order feed.",
+  "ops.notLoggedIn": "Sign in — the desk requires an admin session.",
+  "ops.notAdmin": "This account isn’t on the admin list. Ask the store owner to add you to AUTH0_ADMIN_EMAILS.",
+  "ops.adminsOnly": "Concierge-level access — authenticated admins only.",
 
   "search.title": "Search",
   "search.results": "Results for “{q}”",
@@ -1193,6 +1204,8 @@ const fr: Record<keyof typeof en, string> = {
   "account.orderItems": "{n} article(s) · {seller}",
   "account.orderPlaceholder":
     "Vos commandes apparaissent ici dès que le desk concierge les confirme par téléphone.",
+  "account.ordersError":
+    "Impossible de charger votre historique de commandes. Vérifiez la connexion et rechargez.",
 
   "ops.status.placed": "Commande reçue",
   "ops.status.confirmed": "Confirmée par téléphone",
@@ -1242,6 +1255,15 @@ const fr: Record<keyof typeof en, string> = {
   "ops.filterOpen": "Ouvertes",
   "ops.filterCollected": "Encaissées",
   "ops.cabinLabel": "CAB {seq}",
+
+  "ops.loading": "Synchronisation du tableau…",
+  "ops.refresh": "Actualiser",
+  "ops.retry": "Réessayer",
+  "ops.signIn": "Se connecter",
+  "ops.deskError": "Le desk ne peut pas joindre le flux de commandes.",
+  "ops.notLoggedIn": "Connectez-vous — le desk requiert une session admin.",
+  "ops.notAdmin": "Ce compte n’est pas sur la liste admin. Demandez au propriétaire de vous ajouter à AUTH0_ADMIN_EMAILS.",
+  "ops.adminsOnly": "Accès conciergerie — administrateurs authentifiés uniquement.",
 
   "search.title": "Recherche",
   "search.results": "Résultats pour « {q} »",

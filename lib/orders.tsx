@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { getProduct } from "@/lib/mock";
+import { useAuth } from "@/lib/auth";
 import { isSupabaseConfigured, supabaseClient } from "@/lib/supabase";
 import type { Json } from "@/types/database.types";
 
@@ -73,9 +74,9 @@ export const OPEN_STATUSES: OrderStatus[] = [
 type OrdersContextValue = {
   orders: Order[];
   placeOrder: (input: NewOrder) => Promise<Order>;
-  advance: (id: string) => void;
-  cancel: (id: string) => void;
-  markCollected: (id: string, collected: boolean) => void;
+  advance: (id: string) => Promise<void>;
+  cancel: (id: string) => Promise<void>;
+  markCollected: (id: string, collected: boolean) => Promise<void>;
   getOrder: (id: string) => Order | undefined;
 };
 
@@ -86,10 +87,11 @@ const OrdersContext = createContext<OrdersContextValue | null>(null);
 /* ---------------------------------------------------------------------------
  * Order engine.
  *
- * When Supabase keys are configured, the store is backed by the order RPCs
- * (order_place / order_list_all / order_advance / order_cancel /
- * order_set_collected); the server is the source of truth and mutations
- * reconcile via a refresh. Without keys the whole flow falls back to the
+ * The server (Supabase) is the source of truth. Guest checkout goes straight
+ * to the order_place RPC with the public anon key (the only anon-granted
+ * order function). Desk mutations (advance / cancel / collect) are admin-only
+ * and go through the Auth0-gated /api/ops route; account history through
+ * /api/account/orders. Without Supabase keys the whole flow falls back to the
  * localStorage demo so the app still runs offline.
  * ------------------------------------------------------------------------- */
 
@@ -180,7 +182,7 @@ type DbOrder = {
 };
 
 /** Map a database order document to the storefront Order type. */
-function toOrder(from: Json): Order | null {
+export function toOrder(from: Json): Order | null {
   const d = from as DbOrder;
   if (!d || typeof d.id !== "string" || !d.ref) return null;
   const c = d.customer;
@@ -216,6 +218,7 @@ function toOrder(from: Json): Order | null {
 export function OrdersProvider({ children }: { children: ReactNode }) {
   const orders = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const configured = isSupabaseConfigured();
+  const { user } = useAuth();
 
   useEffect(() => {
     hydrateOrders();
@@ -223,38 +226,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       if (e.key === ORDERS_KEY) hydrateOrders();
     };
     window.addEventListener("storage", onStorage);
-
-    if (configured) {
-      const supabase = supabaseClient();
-      if (supabase) {
-        void Promise.resolve(supabase.rpc("order_list_all"))
-          .then(({ data, error }) => {
-            if (error) return;
-            const list = ((data ?? []) as unknown as Json[])
-              .map(toOrder)
-              .filter((o): o is Order => o !== null);
-            writeOrders(list, storedSeq);
-          })
-          .catch(() => {});
-      }
-    }
-
     return () => window.removeEventListener("storage", onStorage);
-  }, [configured]);
-
-  /** Re-pull every order from the server (source of truth for the desk). */
-  const refresh = useCallback(() => {
-    const supabase = supabaseClient();
-    if (!supabase) return;
-    void Promise.resolve(supabase.rpc("order_list_all"))
-      .then(({ data, error }) => {
-        if (error) return;
-        const list = ((data ?? []) as unknown as Json[])
-          .map(toOrder)
-          .filter((o): o is Order => o !== null);
-        writeOrders(list, storedSeq);
-      })
-      .catch(() => {});
   }, []);
 
   const placeOrder = useCallback(async (input: NewOrder): Promise<Order> => {
@@ -285,6 +257,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       p_address: input.customer.address,
       p_shipping_fee: input.deliveryFee,
       p_payment_method: input.payment,
+      p_auth0_sub: user?.id,
     });
     if (error) throw new Error(error.message);
 
@@ -293,62 +266,51 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
     writeOrders([order, ...storedOrders], storedSeq);
     return order;
-  }, []);
+  }, [user]);
 
   const patch = useCallback((id: string, fn: (o: Order) => Order) => {
     writeOrders(storedOrders.map((o) => (o.id === id ? fn(o) : o)), storedSeq);
   }, []);
 
-  type OrdersSupabase = NonNullable<ReturnType<typeof supabaseClient>>;
-
-/** Optimistic local update, then reconcile with the server. */
-  const mutate = useCallback(
-    (
-      id: string,
-      fn: (o: Order) => Order,
-      rpc: (c: OrdersSupabase) => PromiseLike<{ error: unknown }>
-    ) => {
+  /** Optimistic local update, then push the mutation through the admin route. */
+  const deskAction = useCallback(
+    async (id: string, fn: (o: Order) => Order, action: string, extra?: Record<string, unknown>) => {
       patch(id, fn);
-      const supabase = supabaseClient();
-      if (!supabase) return;
-      void Promise.resolve(rpc(supabase))
-        .then(() => refresh())
-        .catch(() => {});
+      if (!configured) return;
+      const res = await fetch("/api/ops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id, action, ...extra }),
+      });
+      if (!res.ok) throw new Error(`Desk request failed (${res.status})`);
     },
-    [patch, refresh]
+    [configured, patch]
   );
 
   const advance = useCallback(
-    (id: string) => {
-      mutate(
+    (id: string) =>
+      deskAction(
         id,
         (o) => ({ ...o, status: NEXT_STATUS[o.status] ?? o.status }),
-        (s) => s.rpc("order_advance", { p_order_id: id })
-      );
-    },
-    [mutate]
+        "advance"
+      ),
+    [deskAction]
   );
 
   const cancel = useCallback(
-    (id: string) => {
-      mutate(
+    (id: string) =>
+      deskAction(
         id,
         (o) => (o.status === "delivered" ? o : { ...o, status: "cancelled" }),
-        (s) => s.rpc("order_cancel", { p_order_id: id })
-      );
-    },
-    [mutate]
+        "cancel"
+      ),
+    [deskAction]
   );
 
   const markCollected = useCallback(
-    (id: string, collected: boolean) => {
-      mutate(
-        id,
-        (o) => ({ ...o, collected }),
-        (s) => s.rpc("order_set_collected", { p_order_id: id, p_collected: collected })
-      );
-    },
-    [mutate]
+    (id: string, collected: boolean) =>
+      deskAction(id, (o) => ({ ...o, collected }), "collect", { collected }),
+    [deskAction]
   );
 
   const getOrder = useCallback((id: string) => storedOrders.find((o) => o.id === id), []);

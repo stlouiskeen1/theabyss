@@ -50,21 +50,34 @@ Deployed so far:
 | `0005_fix_signup_and_order_rpcs.sql` | Fix `handle_new_user`, `orders.collected`, `addresses.commune_name`, `order_ref_seq`, `mailer_autoconfirm`, order RPCs (§6) | ✅ |
 | `0006_fix_order_place_address.sql` | `order_place` now links `orders.shipping_address_id` (was left null); removed smoke-test data | ✅ |
 | `0007_fix_status_casts.sql` | Explicit `::public.order_status` / `::public.vendor_order_status` casts (CASE literals in `order_advance`/`order_cancel` threw 42804) | ✅ |
+| `0008_secure_order_rpcs.sql` | `orders.auth0_sub text` + index; `order_place` gets a 9th `p_auth0_sub` arg (defaults null) and creates a `payments` row (COD `pending`); `order_list_by_sub(p_sub)` added; all admin RPCs revoked from anon/authenticated → re-granted to `service_role` only; `order_place` stays anon-executable | ✅ |
+| `0009_lock_tables.sql` | **Direct table lockdown**: RLS re-asserted on every `public` table **and** all `anon`/`authenticated` table+sequence privileges revoked. The browser can no longer SELECT/INSERT/UPDATE/DELETE `orders`, `order_items`, `payments`, `profiles`, etc. through PostgREST — everything goes through the RPC layer (checkout) or `service_role` (`/api` routes) | ✅ |
 
 ### Verify what's live
 
-```powershell
-# anon counts (catches a broken migration fast)
-# set $anon to your NEXT_PUBLIC_SUPABASE_ANON_KEY
-$tables = 'categories','vendors','products','product_variants','product_images','wilayas','communes'
-foreach ($t in $tables) {
-  $r = Invoke-WebRequest -Uri "https://mfwlenaqfglmrsapzcsx.supabase.co/rest/v1/$t`?select=id&limit=1" `
-        -Headers @{apikey=$anon; Authorization="Bearer $anon"; Prefer="count=exact"}
-  "$t : $($r.Headers.'Content-Range')"
-}
-```
+README: after `0009_lock_tables.sql` the anon key has **no** table access by
+design — anon REST counts no longer work (401 is the *correct* response). Check
+state in the Dashboard SQL editor or with the `service_role` key (server only),
+e.g.:
 
-Expected: `0-0/4 · 0-0/5 · 0-0/26 · 0-0/108 · 0-0/78 · 0-0/69 · 0-0/15`.
+```sql
+-- RLS is on + anon/authenticated have zero table privileges:
+select c.relname, c.relrowsecurity, c.relforcerowsecurity
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r'
+order by c.relname;
+
+-- function grants (anon may execute ONLY order_place):
+select p.proname, pg_get_function_identity_arguments(p.oid) as args, array_agg(g.grantee) as grantees
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+left join pg_attrdef a on true
+left join information_schema.role_routine_grants g
+  on g.routine_name = p.proname and g.specific_name = p.oid::text
+where n.nspname = 'public'
+group by p.proname, p.oid;
+```
 
 ---
 
@@ -121,31 +134,27 @@ Expected: `0-0/4 · 0-0/5 · 0-0/26 · 0-0/108 · 0-0/78 · 0-0/69 · 0-0/15`.
 
 ### Row Level Security (summary)
 
-RLS is enabled on **all 18 tables**. Policy pattern, table by table:
+**Since `0008` + `0009`, the model is: storefront = RPCs, server = `service_role`,
+nobody else touches tables.**
 
-| Table | Read | Write |
+RLS is enabled on every `public` table, and `anon` / `authenticated` have had
+**all** table + sequence privileges revoked (0009). The `security definer` RPCs
+run as owner (`postgres`, bypasses RLS), and the `/api` routes use the
+`service_role` key (a `bypassrls` role) — those stay fully functional.
+
+| Who | Table access | Function access |
 | --- | --- | --- |
-| `profiles` | self or admin | self or admin |
-| `vendors` | active only (or admin) | admin insert; owner/admin update; admin delete |
-| `categories` | everyone | admin only |
-| `products` | active (or admin) | vendor owner / admin |
-| `product_variants` / `product_images` | via active product | vendor owner / admin |
-| `wilayas` / `communes` | everyone | — |
-| `addresses` | owner | owner |
-| `carts` / `cart_items` | owner (or guest-owned) | owner |
-| `orders` | own or admin | own insert / admin update only |
-| `vendor_orders` | own vendor or admin | own vendor / admin |
-| `order_items` | own vendor or admin | — (no insert policy) |
-| `payments` | related party or admin | — |
-| `reviews` | everyone | authenticated owner only |
-| `wishlists` | owner | owner |
-| `vendor_payouts` | own vendor or admin | admin only |
+| `anon` (browser key) | **none** (401/404 on any PostgREST table path) | `order_place` ONLY — guests can check out, nothing else |
+| `authenticated` (Supabase JWT) | **none** | `order_place` |
+| `service_role` (server-only) | all (bypasses RLS) | `order_list_all`, `order_list_by_sub`, `order_advance`, `order_cancel`, `order_set_collected`, `order_list_own` |
+| `postgres` | all | all |
 
-> The reason orders are written through **RPCs** (deployed in 0005–0007) rather
-> than direct inserts: `order_items` has no write policy at all, and an anonymous /
-> guest checkout fundamentally cannot satisfy the `orders` write policies. The
-> RPCs run as `security definer` (owner = postgres) so they can write the full
-> `orders` + `vendor_orders` + `order_items` graph as one atomic unit.
+> Orders are written through **RPCs** because the checkout creates the full
+> `orders` + `vendor_orders` + `order_items` + `payments` + `addresses` graph as
+> one atomic unit, with prices resolved from the DB. Since 0008 every order is
+> also stamped with `orders.auth0_sub` when the buyer is signed in (Auth0 `sub`);
+> `/api/account/orders` returns exactly those rows via
+> `order_list_by_sub(p_sub)`.
 
 ### Storage buckets
 
@@ -190,7 +199,7 @@ from the aggregate (all delivered → `completed`, any still open → `confirmed
    npx supabase gen types typescript --linked > types/database.types.ts
    ```
    This file is generated — hand-edits get overwritten.
-4. **Verify** with the anon REST counts (§2) or the SQL editor.
+4. **Verify** with the SQL editor (§2) or a `service_role` REST call — anon table access is intentionally locked.
 5. **Verify the app**: `npx tsc --noEmit`, `npx eslint app components lib --max-warnings=0`, `npm run build`.
 
 ### Specific, common changes
@@ -209,17 +218,18 @@ from the aggregate (all delivered → `completed`, any still open → `confirmed
 
 ## 6. The RPC layer (order flow)
 
-**Deployed (0005–0007).** All are `security definer` (bypass RLS so guests + the
-desk can work) and `grant execute` to `anon` + `authenticated`:
+**Deployed (0005–0008).** All are `security definer` (bypass RLS so guests + the
+server routes can work). Grants are split deliberately:
 
-| RPC | Role | What it does |
+| RPC | Callers | What it does |
 | --- | --- | --- |
-| `order_place(p_items jsonb, p_name, p_phone, p_wilaya int, p_commune, p_address, p_shipping_fee numeric, p_payment_method)` | anyone (anon/guest ok) | Inserts the address + order (`ref` = `DZ-0001`…) + one vendor_order per vendor + order_items atomically; binds `orders.shipping_address_id` (fixed in 0006). `p_items` is `[{sku, quantity}]`; prices come from the DB, not the client. Returns the serialized order. |
-| `order_list_own()` | any auth/anon caller | Returns the caller’s orders (by `auth.uid()`). |
-| `order_list_all()` | **open (demo)** — see §7 | Returns every order with full contact data. **Demo decision**: the /ops desk unlocks with the client passcode `abyss`, so this RPC is intentionally open for now. Revisit before a public launch. |
-| `order_advance(p_order_id)` | anyone | Advances open vendor orders one step (pending→processing→shipped→delivered) and reconciles the parent status. |
-| `order_cancel(p_order_id)` | anyone | Marks open vendor orders + the parent order cancelled. |
-| `order_set_collected(p_order_id, p_collected bool)` | anyone | Toggles the COD `collected` flag used by the desk. |
+| `order_place(p_items jsonb, p_name, p_phone, p_wilaya int, p_commune, p_address, p_shipping_fee numeric, p_payment_method, p_auth0_sub text DEFAULT null)` | anon + authenticated (browser checkout) | Inserts address + order (`ref` = `DZ-0001`…) + one vendor_order per vendor + order_items + a `payments` row (COD `pending`) atomically; binds `orders.shipping_address_id`; stamps `orders.auth0_sub` when logged in. `p_items` is `[{sku, quantity}]`; prices come from the DB, not the client. Returns the serialized order. |
+| `order_list_by_sub(p_sub text)` | service_role only | Returns every order stamped with the given Auth0 `sub` (drives `/api/account/orders`). |
+| `order_list_all()` | service_role only | Returns every order with full contact data (drives the `/ops` desk via `/api/ops`). |
+| `order_list_own()` | service_role only | Returns the caller’s orders (by `auth.uid()`) — legacy, unused by the Auth0 storefront. |
+| `order_advance(p_order_id)` | service_role only | Advances open vendor orders one step (pending→processing→shipped→delivered) and reconciles the parent status. |
+| `order_cancel(p_order_id)` | service_role only | Marks open vendor orders + the parent order cancelled. |
+| `order_set_collected(p_order_id, p_collected bool)` | service_role only | Toggles the COD `collected` flag used by the desk. |
 
 Two helpers back the serialized shapes: `order_display_status()` (single
 frontend status derived from the vendor statuses) and `serialize_order()` (full
@@ -227,33 +237,29 @@ order + address + items + display status as one JSON document).
 
 Also deployed with the RPC layer:
 
+- **`orders.auth0_sub text` + `orders_auth0_sub_idx`** — 0008. The Auth0 session `sub` (from `/auth/profile`, `user.id`) is stamped at checkout, which is what lets `/api/account/orders` return "my orders" without leaking others.
 - **`orders.collected boolean NOT NULL DEFAULT false`** — COD collection flag for the desk.
 - **`addresses.commune_name text`** — the checkout commune text (frontend strings like `"Sidi Yahia / Saïd Hamdine"` do **not** match the seeded `communes` names, so the desk snapshots the raw string alongside `wilaya_id`; `commune_id` stays null).
-- **Fixed `handle_new_user`** — sets `full_name` from `raw_user_meta_data->>'name'`, falling back to the email, so signups stop throwing the `NOT NULL` error.
 - **`order_ref_seq` sequence (start 1001)** — drives unique `DZ-####` refs.
-- **Email auto-confirm** — `auth.mailer_autoconfirm = true` so `signUp` returns a session instantly (demo UX).
+- **`payments` row on checkout** — 0008: every `order_place` also records a COD `payments` row with `status='pending'` so revenue can be reconciled later.
 
 ---
 
 ## 7. Status & next steps
 
-The signed-off sprint **"Auth + Orders to live"** is **done and verified** end to
-end against the live project (anon REST: place → advance → set_collected →
-list_all; catalog counts §2 all match). The signed-off scope shipped:
+The signed-off sprint **"Auth + Orders to live"** and the **Phase 1 security
+sprint** are **done and verified** against the live project:
 
-- 0005 – 0007 pushed live; RPC order layer + signup fix working (smoke order `DZ-1003` left in the DB as sample data).
-- `lib/orders.tsx` rewritten RPC-backed (localStorage fallback when Supabase isn’t configured); `app/checkout/CheckoutView.tsx` awaits `placeOrder`.
+- 0005 – 0009 pushed live; RPC order layer + Auth0 identity + table lockdown working.
+- 0008: all order admin RPCs are `service_role`-only; guests are limited to `order_place`; every order can be stamped with the Auth0 `sub`.
+- 0009: anon no longer has any direct table access (verified: GET/DELETE on `orders`, `order_items`, `payments`, `products`, `categories`, `profiles` all → 401; `order_place` still accepted from anon).
+- `lib/orders.tsx`, `app/ops/OpsView.tsx`, `app/account/AccountView.tsx` rewired to the Auth0-gated `/api/ops` + `/api/account/orders` routes; `/ops` is server-guarded (redirects to login). Passcode removed.
 - `types/database.types.ts` regenerated from the live DB.
 
-Still open (tracked separately, none blocking the demo):
+Still open (tracked separately):
 
-1. **Auth0↔orders identity** — orders are currently guest rows (`user_id` null)
-   under the anon key; Auth0 is the identity provider, so wiring
-   `auth0_token`/`sub` → the order needs a future storefront-side link.
-2. **Close `order_list_all`** — flip the demo-open RPC to admin-only before a
-   public launch (make it `security definer` check `is_admin()` or gate the
-   policy).
-3. Keep the golden loop (§5) for every future DB change.
+1. **`SUPABASE_SERVICE_ROLE_KEY` + `AUTH0_ADMIN_EMAILS` in `.env.local`** — the routes need the real service-role key + the admin allowlist to operate (absent config fails closed: `/api/ops` → 500 "not configured", `/ops` → login gate). **Action required from the owner.**
+2. Phase 2 (COD-only — remove the fake CIB/Satim/Edahabia path) and later phases — see `docs/LAUNCH.md`.
 
 ---
 
@@ -275,12 +281,15 @@ Still open (tracked separately, none blocking the demo):
 
 - `.env*` is git-ignored. The anon key is meant to be public; the **db password
   and service_role key must never be committed or shipped to the browser**.
-- `order_list_all` is intentionally **open** right now (demo desk). Anyone with
-  the anon key can read every order’s name/phone/address. Close it (admin-only)
-  before anything public.
-- Orders are **guest rows** today: placed under the anon key, so `user_id` is
-  null even though Auth0 is the identity provider. The Auth0 `sub` → order link
-  is still open (§7).
+- Since 0008 + 0009 the attack surface is: `anon` can only call `order_place`
+  (a checked, `security definer` RPC) — no table reads/writes through PostgREST,
+  no order listing, no desk mutations. All desk/account reads go through
+  Auth0-session-gated `/api` routes backed by `service_role`.
+- The `/ops` desk is **not** guarded by the client anymore: the page is a
+  server component that redirects to sign-in without a session, and the routes
+  enforce an `AUTH0_ADMIN_EMAILS` allowlist (absent config = nobody is admin).
+- `orders.auth0_sub` ties orders to the Auth0 identity; `/api/account/orders`
+  returns ONLY `order_list_by_sub(session.sub)` rows.
 - `security definer` functions are the boundary for writes — keep their
-  search_path pinned and grant execute narrowly (`anon`/`authenticated` only,
-  not `service_role` consumers).
+  search_path pinned (`set search_path = public, pg_temp` in the body) and grant
+  execute narrowly (`order_place` → anon/authenticated; admin RPCs → `service_role`).

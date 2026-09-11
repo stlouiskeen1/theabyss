@@ -261,6 +261,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          auth0_sub: string | null
           collected: boolean
           created_at: string
           id: string
@@ -273,6 +274,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          auth0_sub?: string | null
           collected?: boolean
           created_at?: string
           id?: string
@@ -285,6 +287,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          auth0_sub?: string | null
           collected?: boolean
           created_at?: string
           id?: string
@@ -777,10 +780,12 @@ export type Database = {
       order_cancel: { Args: { p_order_id: string }; Returns: undefined }
       order_display_status: { Args: { p_order_id: string }; Returns: string }
       order_list_all: { Args: never; Returns: Json[] }
+      order_list_by_sub: { Args: { p_sub: string }; Returns: Json[] }
       order_list_own: { Args: never; Returns: Json[] }
       order_place: {
         Args: {
           p_address: string
+          p_auth0_sub?: string
           p_commune: string
           p_items: Json
           p_name: string
