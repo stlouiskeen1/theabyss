@@ -74,7 +74,6 @@ export default function CheckoutView() {
     address: "",
   });
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [payment, setPayment] = useState<"cod" | "cib">("cod");
   const [order, setOrder] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
@@ -117,7 +116,7 @@ export default function CheckoutView() {
         subtotal,
         deliveryFee: fee,
         total,
-        payment,
+        payment: "cod",
       });
       setOrder(placed.ref);
       clear();
@@ -386,22 +385,9 @@ export default function CheckoutView() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-unit-md">
-                  <label
-                    className={`relative flex flex-col md:flex-row md:items-center justify-between p-unit-md cursor-pointer transition-all ${
-                      payment === "cod"
-                        ? "bg-surface-container-low"
-                        : "bg-surface-container-low opacity-90 hover:bg-surface-container-low"
-                    }`}
-                  >
+                  <div className="relative flex flex-col md:flex-row md:items-center justify-between p-unit-md bg-surface-container-low">
                     <div className="flex items-start gap-unit-md">
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="cod"
-                        checked={payment === "cod"}
-                        onChange={() => setPayment("cod")}
-                        className="mt-1 accent-accent-crimson w-4 h-4 cursor-pointer"
-                      />
+                      <span className="mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-status-cod" aria-hidden="true" />
                       <div className="flex flex-col gap-unit-xs">
                         <div className="flex items-center gap-unit-sm flex-wrap">
                           <span className="font-headline-sm text-body-editorial font-bold uppercase text-primary">
@@ -425,52 +411,7 @@ export default function CheckoutView() {
                         {t("checkout.codFee")}
                       </span>
                     </div>
-                  </label>
-
-                  <label
-                    className={`relative flex flex-col md:flex-row md:items-center justify-between p-unit-md cursor-pointer transition-all ${
-                      payment === "cib"
-                        ? "bg-surface-container-low"
-                        : "bg-surface-canvas opacity-90 hover:bg-surface-container-low"
-                    }`}
-                  >
-                    <div className="flex items-start gap-unit-md">
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="cib"
-                        checked={payment === "cib"}
-                        onChange={() => setPayment("cib")}
-                        className="mt-1 accent-accent-crimson w-4 h-4 cursor-pointer"
-                      />
-                      <div className="flex flex-col gap-unit-xs">
-                        <div className="flex items-center gap-unit-sm flex-wrap">
-                          <span className="font-headline-sm text-body-editorial font-bold uppercase text-primary">
-                            {t("checkout.cibTitle")}
-                          </span>
-                          <span className="bg-surface-container-high text-text-muted font-label-caps-sm text-label-caps-sm px-unit-xs py-unit-2xs uppercase tracking-wider">
-                            {t("checkout.cibBadge")}
-                          </span>
-                        </div>
-                        <p className="font-body-utility text-body-utility text-text-muted max-w-xl">
-                          {t("checkout.cibDesc")}
-                        </p>
-                        <div className="flex items-center gap-unit-sm pt-1">
-                          <div className="px-2 py-0.5 bg-primary text-surface-paper font-mono-technical text-[10px] uppercase font-bold">
-                            EDAHABIA
-                          </div>
-                          <div className="px-2 py-0.5 bg-surface-charcoal text-surface-paper font-mono-technical text-[10px] uppercase font-bold">
-                            CIB / SATIM
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-unit-sm md:mt-0 flex-shrink-0 text-right">
-                      <span className="font-label-caps-sm text-label-caps-sm text-text-muted uppercase">
-                        {t("checkout.cibGateway")}
-                      </span>
-                    </div>
-                  </label>
+                  </div>
                 </div>
               </section>
             </div>
@@ -585,23 +526,13 @@ export default function CheckoutView() {
                     strokeWidth="1.5"
                     aria-hidden="true"
                   >
-                    {payment === "cod" ? (
-                      <g key="cod">
-                        <rect x="5" y="10.5" width="14" height="9" rx="1" />
-                        <path d="M8 10.5 V7.5 a4 4 0 0 1 8 0 V10.5" />
-                      </g>
-                    ) : (
-                      <g key="cib">
-                        <rect x="2.5" y="5" width="15" height="12" rx="1" />
-                        <path d="M19 9 H21 V17 A2 2 0 0 1 19 19 H6" />
-                        <path d="M2.5 9 H17.5" />
-                      </g>
-                    )}
+                    <g>
+                      <rect x="5" y="10.5" width="14" height="9" rx="1" />
+                      <path d="M8 10.5 V7.5 a4 4 0 0 1 8 0 V10.5" />
+                    </g>
                   </svg>
                   <span>
-                    {payment === "cod"
-                      ? t("checkout.submitCod")
-                      : t("checkout.submitCib")}
+                    {t("checkout.submitCod")}
                   </span>
                 </button>
                 <p className="font-label-caps-sm text-label-caps-sm text-text-muted uppercase text-center leading-normal">
