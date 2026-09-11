@@ -52,6 +52,7 @@ Deployed so far:
 | `0007_fix_status_casts.sql` | Explicit `::public.order_status` / `::public.vendor_order_status` casts (CASE literals in `order_advance`/`order_cancel` threw 42804) | ✅ |
 | `0008_secure_order_rpcs.sql` | `orders.auth0_sub text` + index; `order_place` gets a 9th `p_auth0_sub` arg (defaults null) and creates a `payments` row (COD `pending`); `order_list_by_sub(p_sub)` added; all admin RPCs revoked from anon/authenticated → re-granted to `service_role` only; `order_place` stays anon-executable | ✅ |
 | `0009_lock_tables.sql` | **Direct table lockdown**: RLS re-asserted on every `public` table **and** all `anon`/`authenticated` table+sequence privileges revoked. The browser can no longer SELECT/INSERT/UPDATE/DELETE `orders`, `order_items`, `payments`, `profiles`, etc. through PostgREST — everything goes through the RPC layer (checkout) or `service_role` (`/api` routes) | ✅ |
+| `0010_cod_only.sql` | **COD-only**: `order_place` now `raise`s unless `p_payment_method = 'cod'` (replaces the payment-method truth table server-side — the checkout UI no longer offers CIB/Satim/Edahabia) | ✅ |
 
 ### Verify what's live
 
@@ -223,7 +224,7 @@ server routes can work). Grants are split deliberately:
 
 | RPC | Callers | What it does |
 | --- | --- | --- |
-| `order_place(p_items jsonb, p_name, p_phone, p_wilaya int, p_commune, p_address, p_shipping_fee numeric, p_payment_method, p_auth0_sub text DEFAULT null)` | anon + authenticated (browser checkout) | Inserts address + order (`ref` = `DZ-0001`…) + one vendor_order per vendor + order_items + a `payments` row (COD `pending`) atomically; binds `orders.shipping_address_id`; stamps `orders.auth0_sub` when logged in. `p_items` is `[{sku, quantity}]`; prices come from the DB, not the client. Returns the serialized order. |
+| `order_place(p_items jsonb, p_name, p_phone, p_wilaya int, p_commune, p_address, p_shipping_fee numeric, p_payment_method, p_auth0_sub text DEFAULT null)` | anon + authenticated (browser checkout) | Inserts address + order (`ref` = `DZ-0001`…) + one vendor_order per vendor + order_items + a `payments` row (COD `pending`) atomically; binds `orders.shipping_address_id`; stamps `orders.auth0_sub` when logged in; **rejects anything but `p_payment_method = 'cod'` (0010)**. `p_items` is `[{sku, quantity}]`; prices come from the DB, not the client. Returns the serialized order. |
 | `order_list_by_sub(p_sub text)` | service_role only | Returns every order stamped with the given Auth0 `sub` (drives `/api/account/orders`). |
 | `order_list_all()` | service_role only | Returns every order with full contact data (drives the `/ops` desk via `/api/ops`). |
 | `order_list_own()` | service_role only | Returns the caller’s orders (by `auth.uid()`) — legacy, unused by the Auth0 storefront. |

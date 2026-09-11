@@ -44,11 +44,13 @@ and any visitor could cancel/advance/delete orders. Fixed:
 
 ## Phase 2 — COD-only checkout
 
-- [ ] Remove CIB / Satim / Edahabia radio + all copy from `CheckoutView`
-      (EN + FR keys too).
-- [ ] `order_place` rejects any `p_payment_method` other than `'cod'`.
-- [ ] COD confirmation copy is honest ("cash on delivery", no gateway wording).
-- [ ] Cleanup migration for payment rows with fake methods (optional).
+- [x] Remove CIB / Satim / Edahabia radio + all copy from `CheckoutView`
+      (EN + FR keys too — `cibTitle`/`cibBadge`/`cibDesc`/`cibGateway`/`submitCib` deleted).
+- [x] `order_place` rejects any `p_payment_method` other than `'cod'`
+      (migration `0010_cod_only.sql`, verified live: `cib` → 400, no rows created).
+- [x] COD confirmation copy is honest ("cash on delivery", no gateway wording).
+- [ ] Cleanup migration for payment rows with fake methods (optional — all live
+      rows are already `cod`).
 
 ## Phase 3 — Order integrity
 

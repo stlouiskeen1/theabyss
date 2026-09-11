@@ -48,7 +48,7 @@ export type Order = {
   subtotal: number;
   deliveryFee: number;
   total: number;
-  payment: "cod" | "cib";
+  payment: "cod";
   status: OrderStatus;
   /** Cash-on-delivery amount collected by the courier, per the desk. */
   collected: boolean;
@@ -209,7 +209,7 @@ export function toOrder(from: Json): Order | null {
     subtotal: Number(d.subtotal),
     deliveryFee: Number(d.shipping_fee),
     total: Number(d.total_amount),
-    payment: d.payment_method === "cod" ? "cod" : "cib",
+    payment: "cod",
     status: d.status,
     collected: d.collected,
   };

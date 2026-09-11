@@ -419,13 +419,7 @@ const en = {
     "Pay the exact amount in cash to the courier on hand delivery. You can control the parcel's integrity before validating the exchange.",
   "checkout.codNoPrepay": "No upfront card payment required.",
   "checkout.codFee": "0 DZD COD Fees",
-  "checkout.cibTitle": "Edahabia / CIB Algeria Post Card",
-  "checkout.cibBadge": "SATIM Secured",
-  "checkout.cibDesc":
-    "Direct electronic payment via certified SATIM / BaridiMob gateway. Instant debit in Algerian dinars (DZD).",
-  "checkout.cibGateway": "National Gateway",
   "checkout.submitCod": "Confirm Order (COD)",
-  "checkout.submitCib": "Pay via Satim / Edahabia",
   "checkout.submitNote":
     "By confirming, your orders are instantly dispatched to the Algiers ateliers for preparation and shipping.",
   "checkout.errPlace":
@@ -1086,13 +1080,7 @@ const fr: Record<keyof typeof en, string> = {
     "Réglez le montant exact en espèces auprès du coursier lors de la remise en main propre. Vous pouvez contrôler l'intégrité du colis avant de valider l'échange.",
   "checkout.codNoPrepay": "Aucun paiement préalable requis par carte.",
   "checkout.codFee": "0 DZD Frais COD",
-  "checkout.cibTitle": "Carte Edahabia / CIB Algérie Poste",
-  "checkout.cibBadge": "SATIM Sécurisé",
-  "checkout.cibDesc":
-    "Paiement électronique direct par passerelle certifiée SATIM / BaridiMob. Débit immédiat en dinars algériens (DZD).",
-  "checkout.cibGateway": "Passerelle Nationale",
   "checkout.submitCod": "Confirmer la Commande (COD)",
-  "checkout.submitCib": "Payer via Satim / Edahabia",
   "checkout.submitNote":
     "En validant, vos commandes sont immédiatement transmises aux ateliers d'Alger pour préparation et expédition.",
   "checkout.errPlace":
