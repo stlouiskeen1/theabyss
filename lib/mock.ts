@@ -800,7 +800,7 @@ export const FEATURED_IDS = [
 ];
 
 export const formatPrice = (n: number) =>
-  "$" + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  n.toLocaleString("en-US") + " DZD";
 
 export const ALL_SIZES = Array.from(
   new Set(PRODUCTS.flatMap((p) => p.sizes))

@@ -1,269 +1,266 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  useAuth,
-  validateEmail,
-  validatePassword,
-  validateSignupName,
-} from "@/lib/auth";
+import { useAuth, type AuthResult } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
-import { ButtonLink } from "@/components/ui";
-import { Chevron, Spinner } from "@/components/ui";
+import { asset, placeholder } from "@/lib/mock";
+import { Spinner } from "@/components/ui";
 
-const fieldBase =
-  "w-full rounded-md border border-hairline bg-canvas px-3.5 py-3 text-sm text-ink transition-colors focus-kill focus:border-ink";
-const fieldErr = "!border-sale";
-const labelCls = "mb-1.5 block text-xs font-medium uppercase tracking-wide text-mute";
-const errCls = "mt-1.5 text-xs text-sale";
+type Status =
+  | { kind: "info"; text: string }
+  | { kind: "success"; text: string }
+  | { kind: "error"; text: string }
+  | null;
+
+function TrayGlyph({ kind }: { kind: "info" | "success" | "error" }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={`flex-shrink-0 ${kind === "error" ? "text-accent-crimson" : ""}`}
+      aria-hidden="true"
+    >
+      {kind === "success" ? (
+        <path d="M5 13 L10 18 L19 7" />
+      ) : kind === "error" ? (
+        <g>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7 V13" />
+          <path d="M12 16.5 V16.6" strokeLinecap="round" />
+        </g>
+      ) : (
+        <g>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11 V17" strokeLinecap="round" />
+          <path d="M12 7.4 V7.5" strokeLinecap="round" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+// Official Auth0 mark (2021 symbol), embedded from the brand SVG.
+function Auth0Mark() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-[18px] w-[18px] shrink-0"
+      viewBox="-197 -54 736 736"
+      fill="none"
+    >
+      <path
+        fill="#EB5424"
+        d="M360.33484 536.48447 288.0367 314 477.35347 176.48447c46.58386 142.73292 0 275.03106-117.01863 360zm117.01863-360L405.05534-46H171.01807l71.92547 222.48447c0 0 234.40993 0 234.40993 0zM171.01807-46H-63.019202L-134.94466 176.48447H99.092595zm-306.3354 222.48447c-46.21118 142.73292 0 275.03106 117.018625 360L53.626761 314zm117.018625 360L171.01807 674 360.33484 536.48447 171.01807 398.96894z"
+      />
+    </svg>
+  );
+}
 
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { t } = useLang();
-  const router = useRouter();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp } = useAuth();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [resetKey, setResetKey] = useState(0);
-  const [googleBusy, setGoogleBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<Status>(null);
 
-  // Demo "Continue with Google". In a real Supabase build this would kick off
-  // the OAuth redirect; here it signs in immediately with a placeholder. A
-  // short min-delay keeps the spinner visible so the async click never feels
-  // like a dead/double tap.
-  const google = () => {
-    if (googleBusy) return;
-    setErrors({});
-    setGoogleBusy(true);
-    const result = signInWithGoogle();
-    if (result.ok) {
-      window.setTimeout(() => {
-        setGoogleBusy(false);
-        router.push("/account");
-      }, 500);
-    } else {
-      setGoogleBusy(false);
-    }
-  };
-
-  const set = (key: "name" | "email" | "password" | "confirm") => (
-    value: string
-  ) => {
-    if (key === "name") setName(value);
-    if (key === "email") setEmail(value);
-    if (key === "password") setPassword(value);
-    if (key === "confirm") setConfirm(value);
-    setErrors((e) => ({ ...e, [key]: "", global: "" }));
-    void resetKey;
-  };
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-
-    // Field-level validation (same standards as a real Supabase flow).
-    const next: Record<string, string> = {};
-    if (mode === "signup") {
-      const n = validateSignupName(name);
-      if (n) next.name = t(n as never);
-    }
-    const em = validateEmail(email);
-    if (em) next.email = t(em as never);
-    const pw = validatePassword(password);
-    if (pw) next.password = t(pw as never);
-    if (mode === "signup" && confirm !== password)
-      next.confirm = t("auth.errConfirmMismatch");
-
-    if (Object.keys(next).length > 0) {
-      setErrors(next);
-      return;
-    }
-
-    const result =
-      mode === "signup"
-        ? signUp(name, email, password)
-        : signIn(email, password);
-
+  // Both paths lead to Auth0's hosted Universal Login page, so this starts a
+  // full-page OAuth redirect instead of submitting an in-app form.
+  const go = (action: () => AuthResult) => {
+    if (busy) return;
+    setBusy(true);
+    const result = action();
     if (!result.ok) {
-      setErrors({ global: t(result.error as never) });
-      // Force password inputs to clear so browsers don't leak them into the
-      // account page for the next attempt.
-      setPassword("");
-      setConfirm("");
-      setResetKey((k) => k + 1);
-      return;
+      setBusy(false);
+      setStatus({ kind: "error", text: t(result.error as never) });
     }
-
-    // Clear the form password state, then go to the account page.
-    setPassword("");
-    setConfirm("");
-    router.push("/account");
   };
 
-  const title = t(mode === "login" ? "auth.heroTitle" : "auth.signupHeroTitle");
-  const sub = t(mode === "login" ? "auth.heroSub" : "auth.signupHeroSub");
+  const showLegal = (kind: "terms" | "privacy") => {
+    setStatus({
+      kind: "info",
+      text: t(kind === "terms" ? "auth.termsNotice" : "auth.privacyNotice"),
+    });
+  };
+
+  const signinTab = mode === "login";
+  const activeTab =
+    "py-unit-sm px-unit-md text-center rounded font-label-caps text-label-caps uppercase transition-all duration-200 bg-surface-paper text-primary shadow-sm";
+  const idleTab =
+    "py-unit-sm px-unit-md text-center rounded font-label-caps text-label-caps uppercase transition-all duration-200 text-text-muted hover:text-primary";
+
+  const legal = t("auth.legal");
+  const termsAt = legal.indexOf("{terms}");
+  const privacyAt = legal.indexOf("{privacy}");
+  const legalHead = termsAt >= 0 ? legal.slice(0, termsAt) : legal;
+  const legalMid =
+    termsAt >= 0 && privacyAt >= 0
+      ? legal.slice(termsAt + "{terms}".length, privacyAt)
+      : "";
+  const legalTail =
+    privacyAt >= 0 ? legal.slice(privacyAt + "{privacy}".length) : "";
 
   return (
-    <div className="mx-auto w-full max-w-md px-5 py-12 sm:px-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-mute">
-        <Link href="/" className="transition-colors hover:text-ink">
-          {t("category.all")}
-        </Link>
-        <Chevron />
-        <span className="text-ink">{title}</span>
-      </div>
+    <div className="w-full px-margin-mobile md:px-margin-desktop py-unit-lg sm:py-unit-2xl">
+      <div className="w-full max-w-[1040px] grid grid-cols-1 lg:grid-cols-12 bg-surface-paper shadow-xl rounded-xl overflow-hidden mx-auto">
+        {/* Left editorial brand panel */}
+        <aside className="hidden lg:flex lg:col-span-5 flex-col justify-between p-unit-2xl bg-surface-charcoal text-surface-paper relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-primary-container/40 to-transparent pointer-events-none"></div>
 
-      <h1 className="mt-4 font-display text-4xl font-normal uppercase leading-[0.95] tracking-tight text-ink sm:text-5xl">
-        {title}
-      </h1>
-      <p className="mt-3 max-w-[38ch] text-sm leading-6 text-charcoal">{sub}</p>
-
-      <div className="mt-8 rounded-[18px] border border-hairline-soft bg-canvas p-6 sm:p-8">
-        {/* Continue with Google */}
-        <button
-          type="button"
-          onClick={google}
-          disabled={googleBusy}
-          aria-busy={googleBusy}
-          className="press focus-kill inline-flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-hairline bg-canvas px-8 text-sm font-medium uppercase text-ink transition-colors hover:border-ink disabled:opacity-60"
-        >
-          {googleBusy ? (
-            <Spinner />
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-              <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-              <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.1 0-9.4-3.4-11-8l-6.4 5C9.5 39.6 16.2 44 24 44z" />
-              <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C36.9 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z" />
-            </svg>
-          )}
-          {googleBusy ? t("auth.signingIn") : t("auth.google")}
-        </button>
-
-        <div className="my-6 flex items-center gap-3" aria-hidden="true">
-          <span className="h-px flex-1 bg-hairline-soft" />
-          <span className="text-xs font-medium uppercase tracking-wide text-mute">
-            {t("auth.or")}
-          </span>
-          <span className="h-px flex-1 bg-hairline-soft" />
-        </div>
-
-        <form onSubmit={submit} noValidate={false} className="flex flex-col gap-4">
-          {mode === "signup" && (
-            <div>
-              <label htmlFor="auth-name" className={labelCls}>
-                {t("auth.name")}
-              </label>
-              <input
-                id="auth-name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(e) => set("name")(e.target.value)}
-                placeholder={t("auth.namePlaceholder")}
-                className={`${fieldBase} ${errors.name ? fieldErr : ""}`}
-              />
-              {errors.name && <p className={errCls}>{errors.name}</p>}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="auth-email" className={labelCls}>
-              {t("auth.email")}
-            </label>
-            <input
-              id="auth-email"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              value={email}
-              onChange={(e) => set("email")(e.target.value)}
-              placeholder={t("auth.emailPlaceholder")}
-              className={`${fieldBase} ${errors.email ? fieldErr : ""}`}
-            />
-            {errors.email && <p className={errCls}>{errors.email}</p>}
+          <div className="relative z-10 flex items-center justify-between">
+            <span className="font-label-caps text-label-caps text-surface-tint tracking-widest uppercase">
+              {t("auth.clientPrivilege")}
+            </span>
+            <Auth0Mark />
           </div>
 
-          <div>
-            <label htmlFor="auth-password" className={labelCls}>
-              {t("auth.password")}
-            </label>
-            <input
-              key={`pw-${resetKey}`}
-              id="auth-password"
-              type="password"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => set("password")(e.target.value)}
-              placeholder={t("auth.passwordPlaceholder")}
-              className={`${fieldBase} ${errors.password ? fieldErr : ""}`}
-            />
-            {mode === "signup" ? (
-              <p className="mt-1.5 text-xs text-mute">{t("auth.passwordHint")}</p>
-            ) : null}
-            {errors.password && <p className={errCls}>{errors.password}</p>}
+          <div className="relative z-10 my-unit-2xl flex flex-col gap-unit-md">
+            <div className="overflow-hidden rounded-lg aspect-[4/5] relative bg-primary-container shadow-md">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={asset(
+                  "category-apparel",
+                  placeholder("abyss-auth-portal", 800, 1000)
+                )}
+                alt=""
+                className="w-full h-full object-cover grayscale brightness-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-surface-charcoal via-transparent to-transparent"></div>
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-surface-paper">
+                <span className="font-mono-technical text-mono-technical tracking-widest uppercase">
+                  {t("auth.panelCity")}
+                </span>
+                <span className="font-label-caps-sm text-label-caps-sm uppercase bg-surface-paper text-primary px-unit-xs py-unit-2xs">
+                  {t("auth.exclusiveIndex")}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-unit-xs">
+              <p className="font-headline-sm text-headline-sm tracking-tight text-surface-paper uppercase">
+                {t("auth.panelTitle")}
+              </p>
+              <p className="font-body-utility text-body-utility text-surface-tint">
+                {t("auth.panelBody")}
+              </p>
+            </div>
           </div>
 
-          {mode === "signup" && (
-            <div>
-              <label htmlFor="auth-confirm" className={labelCls}>
-                {t("auth.confirmPassword")}
-              </label>
-              <input
-                key={`cf-${resetKey}`}
-                id="auth-confirm"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => set("confirm")(e.target.value)}
-                placeholder={t("auth.confirmPasswordPlaceholder")}
-                className={`${fieldBase} ${errors.confirm ? fieldErr : ""}`}
-              />
-              {errors.confirm && <p className={errCls}>{errors.confirm}</p>}
+          <div className="relative z-10 flex items-center justify-between pt-unit-md border-t border-primary-container">
+            <div className="flex items-center gap-unit-xs">
+              <span className="w-2 h-2 rounded-full bg-status-cod animate-pulse"></span>
+              <span className="font-mono-technical text-mono-technical text-surface-tint">
+                {t("auth.systemOnline")}
+              </span>
             </div>
-          )}
+            <span className="font-label-caps-sm text-label-caps-sm text-surface-tint tracking-widest">
+              {t("auth.tls")}
+            </span>
+          </div>
+        </aside>
 
-          {errors.global && (
-            <p role="alert" className="rounded-md bg-sale/5 px-3 py-2.5 text-sm text-sale">
-              {errors.global}
+        {/* Right authentication monolith */}
+        <div className="col-span-1 lg:col-span-7 flex flex-col justify-center p-unit-lg sm:p-unit-2xl bg-surface-paper">
+          <div className="w-full max-w-[480px] mx-auto flex flex-col gap-unit-lg">
+            <div className="flex flex-col gap-unit-sm">
+              <div className="flex items-center gap-unit-xs">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
+                <span className="font-label-caps-sm text-label-caps-sm text-text-muted uppercase tracking-widest">
+                  {t("auth.portalEntry")}
+                </span>
+              </div>
+              <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight uppercase">
+                {t("auth.cardTitle")}
+              </h1>
+              <p className="font-body-editorial text-body-editorial text-text-muted">
+                {t("auth.cardSub")}
+              </p>
+            </div>
+
+            {/* Mode toggle segmented control */}
+            <div className="grid grid-cols-2 p-1 bg-surface-canvas rounded-lg">
+              <Link
+                href="/account/login"
+                aria-current={signinTab ? "page" : undefined}
+                className={signinTab ? activeTab : idleTab}
+              >
+                {t("auth.signIn")}
+              </Link>
+              <Link
+                href="/account/signup"
+                aria-current={signinTab ? undefined : "page"}
+                className={signinTab ? idleTab : activeTab}
+              >
+                {t("auth.signUp")}
+              </Link>
+            </div>
+
+            {/* Primary Auth0 CTA — opens the hosted sign-in / sign-up flow */}
+            <div className="flex flex-col gap-unit-sm">
+              <button
+                type="button"
+                disabled={busy}
+                aria-busy={busy}
+                onClick={() => go(mode === "signup" ? signUp : signIn)}
+                className="w-full h-12 bg-primary hover:bg-surface-charcoal text-on-primary font-label-caps text-label-caps uppercase tracking-wider rounded shadow-md transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-unit-sm press focus-kill disabled:opacity-60"
+              >
+                {busy ? (
+                  <Spinner />
+                ) : (
+                  <Auth0Mark />
+                )}
+                <span>
+                  {busy
+                    ? t("auth.signingIn")
+                    : t(
+                        mode === "signup"
+                          ? "auth.continueAuth0Signup"
+                          : "auth.continueAuth0"
+                      )}
+                </span>
+              </button>
+              <p className="font-body-utility text-body-utility text-text-muted text-center leading-relaxed">
+                {t("auth.hostedNote")}
+              </p>
+            </div>
+
+            {/* Feedback tray — errors / notice summaries only */}
+            {status && (
+              <div
+                role={status.kind === "error" ? "alert" : "status"}
+                className="p-unit-sm rounded bg-surface-container text-primary font-mono-technical text-mono-technical flex items-center gap-unit-sm"
+              >
+                <TrayGlyph kind={status.kind} />
+                <span>{status.text}</span>
+              </div>
+            )}
+
+            {/* Compliance & legal disclaimer */}
+            <p className="font-body-utility text-[11px] leading-relaxed text-text-muted text-center pt-unit-2xs">
+              {legalHead}
+              <button
+                type="button"
+                onClick={() => showLegal("terms")}
+                className="underline hover:text-primary transition-colors press focus-kill"
+              >
+                {t("auth.terms")}
+              </button>
+              {legalMid}
+              <button
+                type="button"
+                onClick={() => showLegal("privacy")}
+                className="underline hover:text-primary transition-colors press focus-kill"
+              >
+                {t("auth.privacy")}
+              </button>
+              {legalTail}
             </p>
-          )}
-
-          <button
-            type="submit"
-            className="press focus-kill mt-1 h-12 w-full rounded-lg bg-ink px-8 text-sm font-medium uppercase text-canvas transition-colors hover:bg-charcoal"
-          >
-            {t(mode === "login" ? "auth.submit" : "auth.signupSubmit")}
-          </button>
-        </form>
-
-        <div className="mt-6 flex flex-col items-start gap-2 border-t border-hairline-soft pt-5 text-sm">
-          {mode === "login" ? (
-            <>
-              <span className="text-mute">{t("auth.noAccount")}</span>
-              <ButtonLink href="/account/signup" variant="ghost" className="w-full">
-                {t("auth.createOne")}
-              </ButtonLink>
-            </>
-          ) : (
-            <>
-              <span className="text-mute">{t("auth.haveAccount")}</span>
-              <ButtonLink href="/account/login" variant="ghost" className="w-full">
-                {t("auth.signInInstead")}
-              </ButtonLink>
-            </>
-          )}
+          </div>
         </div>
       </div>
-
-      <p className="mt-5 text-center text-xs leading-5 text-mute">
-        {t("auth.demoNotice")}
-      </p>
     </div>
   );
 }

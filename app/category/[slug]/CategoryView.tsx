@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import ProductGrid from "@/components/ProductGrid";
-import { IconButton } from "@/components/ui";
+import { CloseIcon, IconButton } from "@/components/ui";
 import {
   useLang,
   categoryLabelKey,
@@ -30,13 +30,8 @@ type Sort = "featured" | "priceLow" | "priceHigh" | "newest";
 
 const PROMOS: Promo[] = ["justIn", "recycled", "limited"];
 
-const GROUP_TITLE =
-  "mb-3 text-sm font-medium uppercase tracking-wide text-ink";
-
 function Count({ n }: { n: number }) {
-  return (
-    <span className="ml-1 text-xs tabular-nums text-mute">({n})</span>
-  );
+  return <span className="font-mono-technical text-label-caps">{n}</span>;
 }
 
 export default function CategoryView({
@@ -50,7 +45,6 @@ export default function CategoryView({
 }) {
   const { t } = useLang();
   const router = useRouter();
-  const [hideFilters, setHideFilters] = useState(false);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [size, setSize] = useState<string | null>(null);
   const [band, setBand] = useState<number>(0);
@@ -67,8 +61,6 @@ export default function CategoryView({
       : null
   );
 
-  // Keep gender/subcategory reflected in the URL so the nav flyouts and the
-  // back/forward buttons stay honest.
   const syncUrl = (
     nextGender: Exclude<Gender, "UNISEX"> | null,
     nextSub: string | null
@@ -95,9 +87,9 @@ export default function CategoryView({
   };
 
   const title = useMemo(() => {
-    if (slug === "all") return "All";
+    if (slug === "all") return t("category.all");
     const cat = CATEGORIES.find((c) => c.slug === slug);
-    return cat ? t(categoryLabelKey(cat.slug)) : "All";
+    return cat ? t(categoryLabelKey(cat.slug)) : t("category.all");
   }, [slug, t]);
 
   const base = useMemo(() => {
@@ -118,10 +110,8 @@ export default function CategoryView({
           p.gender === "UNISEX") &&
         (subcat === null || p.subcategory === subcat)
     );
-    if (sort === "priceLow")
-      out = [...out].sort((a, z) => a.price - z.price);
-    if (sort === "priceHigh")
-      out = [...out].sort((a, z) => z.price - a.price);
+    if (sort === "priceLow") out = [...out].sort((a, z) => a.price - z.price);
+    if (sort === "priceHigh") out = [...out].sort((a, z) => z.price - a.price);
     if (sort === "newest")
       out = [...out].sort((a, z) =>
         a.promo === "justIn" ? -1 : z.promo === "justIn" ? 1 : 0
@@ -132,6 +122,13 @@ export default function CategoryView({
   const count = (fn: (p: (typeof base)[number]) => boolean) =>
     base.filter(fn).length;
 
+  const activeCount =
+    (size !== null ? 1 : 0) +
+    (band !== 0 ? 1 : 0) +
+    (promo !== null ? 1 : 0) +
+    (gender !== null ? 1 : 0) +
+    (subcat !== null ? 1 : 0);
+
   const clearAll = () => {
     setSize(null);
     setBand(0);
@@ -141,111 +138,104 @@ export default function CategoryView({
     syncUrl(null, null);
   };
 
-  const hasFilters =
-    size !== null || band !== 0 || promo !== null || gender !== null || subcat !== null;
-
+  const hasFilters = activeCount > 0;
   const cat = slug === "all" ? null : (slug as CategorySlug);
 
+  const ModuleLabel = "font-label-caps text-label-caps uppercase tracking-wider text-primary";
+  const bandLabel = (i: number) =>
+    i === 0 ? t("price.all") : t(`price.b${i}` as "price.all");
+
   const Filters = (
-    <div className="flex flex-col gap-8">
+    <form className="flex flex-col divide-y divide-border-rule text-body-utility">
       {slug === "all" && (
-        <div>
-          <h3 className={GROUP_TITLE}>{t("plp.category")}</h3>
-          <div className="flex flex-col items-start gap-1">
-            {CATEGORIES.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/category/${c.slug}`}
-                className="text-sm text-mute transition-colors hover:text-ink"
-              >
-                {t(categoryLabelKey(c.slug))}
-                <Count n={getProductsByCategory(c.label as Category).length} />
-              </Link>
-            ))}
+        <div className="flex flex-col gap-unit-sm p-unit-md">
+          <span className={ModuleLabel}>{t("plp.category")}</span>
+          <div className="flex flex-col gap-unit-2xs">
+            {CATEGORIES.map((c) => {
+              const n = getProductsByCategory(c.label as Category).length;
+              return (
+                <a
+                  key={c.slug}
+                  href={`/category/${c.slug}`}
+                  className="flex items-center justify-between py-1 pl-unit-xs font-label-caps-sm text-label-caps-sm text-text-muted transition-colors hover:font-bold hover:text-primary"
+                >
+                  <span>{t(categoryLabelKey(c.slug))}</span>
+                  <Count n={n} />
+                </a>
+              );
+            })}
           </div>
         </div>
       )}
 
       {cat && (
-        <div>
-          <h3 className={GROUP_TITLE}>{t("plp.subcategory")}</h3>
-          <div className="flex flex-col items-start gap-1">
-            {SUBCATEGORIES_BY_CATEGORY[cat].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSub(s)}
-                className={`text-sm transition-colors ${
-                  subcat === s
-                    ? "font-medium text-ink"
-                    : "text-mute hover:text-ink"
-                }`}
-              >
-                {t(subcategoryLabelKey(s))}
-                <Count n={count((p) => p.subcategory === s)} />
-              </button>
-            ))}
+        <div className="flex flex-col gap-unit-sm p-unit-md">
+          <span className={ModuleLabel}>{t("plp.subcategory")}</span>
+          <div className="flex flex-col gap-unit-2xs">
+            {SUBCATEGORIES_BY_CATEGORY[cat].map((s) => {
+              const isActive = subcat === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggleSub(s)}
+                  className={`flex items-center justify-between border-l-2 px-2 py-1 text-left font-label-caps-sm text-label-caps-sm transition-colors ${
+                    isActive
+                      ? "border-primary font-bold text-primary"
+                      : "border-transparent text-text-muted hover:text-primary"
+                  }`}
+                >
+                  <span className="uppercase">{t(subcategoryLabelKey(s))}</span>
+                  <Count n={count((p) => p.subcategory === s)} />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
-      <div>
-        <h3 className={GROUP_TITLE}>{t("plp.gender")}</h3>
-        <div className="flex flex-col items-start gap-1">
-          <button
-            type="button"
-            onClick={() => toggleGender("WOMEN")}
-            className={`text-sm transition-colors ${
-              gender === "WOMEN"
-                ? "font-medium text-ink"
-                : "text-mute hover:text-ink"
-            }`}
-          >
-            {t(genderLabelKey("WOMEN"))}
-            <Count
-              n={count(
-                (p) => p.gender === "WOMEN" || p.gender === "UNISEX"
-              )}
-            />
-          </button>
-          <button
-            type="button"
-            onClick={() => toggleGender("MEN")}
-            className={`text-sm transition-colors ${
-              gender === "MEN"
-                ? "font-medium text-ink"
-                : "text-mute hover:text-ink"
-            }`}
-          >
-            {t(genderLabelKey("MEN"))}
-            <Count
-              n={count((p) => p.gender === "MEN" || p.gender === "UNISEX")}
-            />
-          </button>
-          {gender !== null && (
+      <div className="flex flex-col gap-unit-sm p-unit-md">
+        <span className={ModuleLabel}>{t("plp.gender")}</span>
+        <div className="flex flex-col gap-unit-2xs font-mono-technical text-mono-technical">
+          {(["WOMEN", "MEN"] as const).map((value) => (
             <button
+              key={value}
               type="button"
-              onClick={() => toggleGender(gender)}
-              className="text-sm text-sale"
+              onClick={() => toggleGender(value)}
+              className={`flex items-center justify-between border-b border-border-rule py-1 px-1 transition-colors ${
+                gender === value
+                  ? "font-bold text-primary"
+                  : "text-text-muted hover:text-primary"
+              }`}
             >
-              {t("plp.any")}
+              <span className="uppercase">{t(genderLabelKey(value))}</span>
+              <Count
+                n={count(
+                  (p) => p.gender === value || p.gender === "UNISEX"
+                )}
+              />
             </button>
-          )}
+          ))}
         </div>
       </div>
 
-      <div>
-        <h3 className={GROUP_TITLE}>{t("plp.size")}</h3>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-unit-sm p-unit-md">
+        <div className="flex items-center justify-between">
+          <span className={ModuleLabel}>{t("plp.sizesGrid")}</span>
+          <span className="font-label-caps-sm text-label-caps-sm text-text-muted">
+            EU / US
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1 text-center font-mono-technical text-mono-technical">
           {ALL_SIZES.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setSize(size === s ? null : s)}
-              className={`focus-kill press h-9 min-w-9 rounded-lg border px-2 text-sm transition-colors ${
+              className={`py-2 uppercase transition-colors ${
                 size === s
-                  ? "border-ink bg-ink text-on-primary"
-                  : "border-hairline bg-canvas text-charcoal hover:border-ink"
+                  ? "border border-border-dark bg-primary font-bold text-on-primary"
+                  : "border border-border-rule hover:border-primary hover:bg-surface-canvas"
               }`}
             >
               {s}
@@ -254,202 +244,365 @@ export default function CategoryView({
         </div>
       </div>
 
-      <div>
-        <h3 className={GROUP_TITLE}>{t("plp.price")}</h3>
-        <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-col gap-unit-sm p-unit-md">
+        <div className="flex items-center justify-between">
+          <span className={ModuleLabel}>{t("plp.priceRange")}</span>
+          <span className="font-mono-technical text-label-caps font-bold text-primary">
+            DZD
+          </span>
+        </div>
+        <div className="flex flex-col gap-unit-2xs">
           {PRICE_BANDS.map((b, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setBand(band === i ? 0 : i)}
-              className={`text-sm transition-colors ${
-                band === i ? "font-medium text-ink" : "text-mute hover:text-ink"
+              className={`flex items-center justify-between py-1 pl-unit-xs text-left transition-colors ${
+                band === i
+                  ? "font-mono-technical font-bold text-primary"
+                  : "font-mono-technical text-mono-technical text-text-muted hover:text-primary"
               }`}
             >
-              {i === 0 ? t("price.all") : t(`price.b${i}` as "price.all")}
+              <span className="uppercase">{bandLabel(i)}</span>
               <Count n={count((p) => b.min === null || p.price >= b.min)} />
             </button>
           ))}
         </div>
       </div>
 
-      <div>
-        <h3 className={GROUP_TITLE}>{t("plp.promo")}</h3>
-        <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-col gap-unit-sm p-unit-md">
+        <span className={ModuleLabel}>{t("plp.promo")}</span>
+        <div className="flex flex-col gap-unit-2xs">
           {PROMOS.map((pr) => (
             <button
               key={pr}
               type="button"
               onClick={() => setPromo(promo === pr ? null : pr)}
-              className={`text-sm transition-colors ${
+              className={`flex items-center justify-between py-1 pl-unit-xs text-left transition-colors ${
                 promo === pr
-                  ? "font-medium text-ink"
-                  : "text-mute hover:text-ink"
+                  ? "font-mono-technical font-bold text-primary"
+                  : "font-mono-technical text-mono-technical text-text-muted hover:text-primary"
               }`}
             >
-              {t(promoLabelKey(pr))}
+              <span className="uppercase">{t(promoLabelKey(pr))}</span>
               <Count n={count((p) => p.promo === pr)} />
             </button>
           ))}
         </div>
       </div>
 
-      {hasFilters && (
-        <button
-          type="button"
-          onClick={clearAll}
-          className="self-start text-xs font-medium uppercase tracking-wide text-ink underline underline-offset-4 transition-opacity hover:opacity-60"
-        >
-          {t("plp.clearAll")}
-        </button>
-      )}
-    </div>
+      <div className="flex flex-col gap-unit-xs bg-surface-canvas p-unit-md">
+        <div className="flex items-center gap-unit-xs">
+          <span className="h-2 w-2 bg-status-cod" />
+          <span className="font-label-caps text-label-caps font-bold uppercase text-status-cod">
+            {t("plp.security")}
+          </span>
+        </div>
+        <label className="flex cursor-pointer items-center gap-unit-sm pt-1">
+          <input
+            type="checkbox"
+            checked
+            readOnly
+            className="h-3.5 w-3.5 cursor-pointer rounded-none border border-border-dark accent-status-cod"
+          />
+          <span className="font-mono-technical text-mono-technical text-primary">
+            {t("plp.codAccepted")}
+          </span>
+        </label>
+        <span className="mt-1 font-label-caps-sm text-label-caps-sm uppercase leading-tight text-text-muted">
+          {t("plp.codNote")}
+        </span>
+      </div>
+
+      {hasFilters ? (
+        <div className="p-unit-md">
+          <button
+            type="button"
+            onClick={clearAll}
+            className="press focus-kill font-label-caps-sm text-label-caps-sm uppercase text-accent-crimson transition-colors hover:underline"
+          >
+            {t("plp.resetAll")}
+          </button>
+        </div>
+      ) : null}
+    </form>
   );
 
   return (
     <>
-      {/* Header */}
-      <div className="px-5 pt-8 sm:px-8">
-        <div className="flex items-center gap-2 text-xs text-mute">
-          <Link href="/" className="transition-colors hover:text-ink">
-            {t("category.all")}
-          </Link>
-          <Chevron />
-          <span className="text-ink">{title}</span>
-          {subcat && (
-            <>
-              <Chevron />
-              <span className="text-ink">
-                {t(subcategoryLabelKey(subcat))}
+      {/* System status bar / archive index header */}
+      <section className="w-full border-b border-border-rule bg-surface-paper px-margin-mobile py-unit-xl sm:px-margin-desktop">
+        <div className="flex flex-col gap-unit-md">
+          <div className="flex items-center justify-between font-mono-technical text-mono-technical text-text-muted">
+            <div className="flex items-center gap-unit-xs uppercase">
+              <Link href="/" className="transition-colors hover:text-primary">
+                {t("plp.breadcrumbBase")}
+              </Link>
+              <span>/</span>
+              <span className="font-bold text-primary">{title}</span>
+              <span>/</span>
+              <span className="text-status-cod">
+                {t("plp.wilayasEligible")}
               </span>
-            </>
-          )}
-        </div>
-        <h1 className="mt-3 text-[28px] font-medium uppercase tracking-tight text-ink sm:text-[32px]">
-          {title}
-        </h1>
-        <p className="mt-1 text-sm text-mute">
-          {items.length} {items.length === 1 ? t("plp.resultOne") : t("plp.results")}
-        </p>
-      </div>
-
-      {/* Sub-nav */}
-      <div className="sticky top-0 z-30 mt-6 border-y border-hairline-soft bg-canvas">
-        <div className="flex items-center justify-between px-5 py-3 sm:px-8">
-          <button
-            type="button"
-            onClick={() => setHideFilters((v) => !v)}
-            className="focus-kill flex items-center gap-2 text-sm font-medium uppercase text-ink"
-          >
-            {hideFilters ? t("plp.showFilters") : t("plp.hideFilters")}
-            <span className="flex flex-col">
-              <span className="h-px w-3 bg-ink" />
-              <span className="mt-0.5 h-px w-3 bg-ink" />
-            </span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMobileFilters(true)}
-              className="focus-kill mr-1 text-sm font-medium uppercase text-ink lg:hidden"
-            >
-              {t("plp.showFilters")}
-            </button>
-            <label className="hidden items-center gap-2 text-sm text-mute lg:flex">
-              <span className="uppercase">{t("plp.sortBy")}</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as Sort)}
-                className="cursor-pointer rounded-md border border-hairline bg-canvas px-3 py-2 text-sm text-ink focus-kill focus:border-ink"
-              >
-                <option value="featured">{t("plp.sortFeatured")}</option>
-                <option value="priceLow">{t("plp.sortPriceLow")}</option>
-                <option value="priceHigh">{t("plp.sortPriceHigh")}</option>
-                <option value="newest">{t("plp.sortNewest")}</option>
-              </select>
-            </label>
+            </div>
+            <div className="hidden items-center gap-unit-md sm:flex">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent-crimson" />
+              <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest">
+                {t("plp.hubStatus")}
+              </span>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Body */}
-      <div className="mt-6 flex gap-10 px-2 sm:px-6">
-        {!hideFilters && (
-          <aside className="hidden w-56 shrink-0 px-6 lg:block">
-            <div className="sticky top-24 pb-12">{Filters}</div>
-          </aside>
-        )}
-        <div className="min-w-0 flex-1">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-start gap-4 px-6 py-12">
-              <h2 className="font-display text-2xl font-normal uppercase tracking-tight text-ink">
-                {t("plp.noResultsTitle")}
-              </h2>
-              <p className="max-w-[40ch] text-sm leading-6 text-charcoal">
-                {t("plp.noResultsDesc")}
+          <div className="flex flex-col justify-between gap-unit-lg pt-unit-xs lg:flex-row lg:items-end">
+            <div>
+              <div className="flex items-baseline gap-unit-sm">
+                <h1 className="font-headline-lg text-headline-lg uppercase tracking-tight text-primary">
+                  {title}
+                </h1>
+                <span className="font-mono-technical text-label-caps font-bold text-accent-crimson">
+                  [{items.length} {t("plp.archives")}]
+                </span>
+              </div>
+              <p className="mt-1 font-body-editorial text-body-editorial text-text-muted">
+                {items.length}{" "}
+                {items.length === 1 ? t("plp.resultOne") : t("plp.results")}
               </p>
+            </div>
+
+            <div className="flex items-center gap-unit-sm self-start lg:self-end">
+              <label htmlFor="sort-select" className="font-label-caps text-label-caps uppercase text-text-muted">
+                {t("plp.sortBy")}:
+              </label>
+              <div className="relative">
+                <select
+                  id="sort-select"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as Sort)}
+                  className="cursor-pointer appearance-none rounded-none border border-border-dark bg-surface-canvas px-unit-md py-unit-xs pr-8 font-mono-technical text-mono-technical uppercase text-primary focus:bg-surface-paper focus:outline-none"
+                >
+                  <option value="featured">{t("plp.sortFeatured")}</option>
+                  <option value="priceLow">{t("plp.sortPriceLow")}</option>
+                  <option value="priceHigh">{t("plp.sortPriceHigh")}</option>
+                  <option value="newest">{t("plp.sortNewest")}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Active filters pill strip */}
+          {hasFilters ? (
+            <div className="flex flex-wrap items-center gap-unit-xs border-t border-border-rule pt-unit-sm">
+              <span className="mr-unit-xs font-label-caps-sm text-label-caps-sm uppercase text-text-muted">
+                {t("plp.filtersActive", { n: activeCount })}
+              </span>
+              {gender !== null ? (
+                <Pill
+                  label={t(genderLabelKey(gender))}
+                  onRemove={() => toggleGender(gender)}
+                />
+              ) : null}
+              {subcat !== null ? (
+                <Pill
+                  label={t(subcategoryLabelKey(subcat))}
+                  onRemove={() => toggleSub(subcat)}
+                />
+              ) : null}
+              {size !== null ? (
+                <Pill label={size} onRemove={() => setSize(null)} />
+              ) : null}
+              {band !== 0 ? (
+                <Pill label={bandLabel(band)} onRemove={() => setBand(0)} />
+              ) : null}
+              {promo !== null ? (
+                <Pill
+                  label={t(promoLabelKey(promo))}
+                  onRemove={() => setPromo(null)}
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={clearAll}
-                className="press focus-kill mt-2 inline-flex h-12 items-center justify-center rounded-lg bg-ink px-8 text-sm font-medium lowercase text-on-primary transition-colors hover:bg-charcoal"
+                className="ml-unit-xs font-label-caps-sm text-label-caps-sm uppercase text-accent-crimson hover:underline"
               >
-                {t("plp.clearFilters")}
+                {t("plp.resetAll")}
               </button>
             </div>
-          ) : (
-            <ProductGrid
-              key={sort}
-              items={items}
-              initial={12}
-              step={8}
-              cols={4}
-            />
-          )}
+          ) : null}
+        </div>
+      </section>
+
+      {/* Main matrix */}
+      <div className="w-full px-margin-mobile py-unit-xl sm:px-margin-desktop">
+        <div className="grid grid-cols-1 items-start gap-gutter-desktop lg:grid-cols-12">
+          {/* Left filter rail */}
+          <aside className="flex flex-col border border-border-rule bg-surface-paper lg:sticky lg:top-28 lg:col-span-3">
+            <div className="flex items-center justify-between border-b border-border-rule bg-surface-canvas p-unit-md">
+              <div className="flex items-center gap-unit-xs">
+                <span className="font-label-caps text-label-caps uppercase text-primary">
+                  {t("plp.filters")}
+                </span>
+              </div>
+              <span className="font-mono-technical text-label-caps-sm text-text-muted">
+                {t("plp.filtersActive", { n: activeCount })}
+              </span>
+            </div>
+            {Filters}
+          </aside>
+
+          {/* Product matrix */}
+          <section className="flex flex-col gap-unit-xl lg:col-span-9">
+            {items.length === 0 ? (
+              <div className="flex flex-col items-start gap-4 border border-border-rule bg-surface-paper px-unit-lg py-unit-2xl">
+                <h2 className="font-headline-lg text-headline-lg uppercase tracking-tight text-primary">
+                  {t("plp.noResultsTitle")}
+                </h2>
+                <p className="max-w-[40ch] font-body-editorial text-body-editorial text-text-muted">
+                  {t("plp.noResultsDesc")}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="press focus-kill mt-2 inline-flex h-12 items-center justify-center bg-primary px-unit-md font-label-caps text-label-caps uppercase text-on-primary transition-colors hover:bg-accent-crimson"
+                >
+                  {t("plp.clearFilters")}
+                </button>
+              </div>
+            ) : (
+              <>
+                <ProductGrid key={sort} items={items} initial={12} step={8} cols={3} />
+                {/* Status + trust bar */}
+                <div className="mt-unit-lg flex w-full flex-col items-center gap-unit-md border border-border-rule bg-surface-paper p-unit-xl text-center">
+                  <div className="flex w-full max-w-md items-center justify-between font-mono-technical text-mono-technical">
+                    <span className="uppercase text-text-muted">
+                      {t("plp.statusBar", {
+                        shown: Math.min(12, items.length),
+                        total: items.length,
+                      })}
+                    </span>
+                    <span className="font-bold text-primary">
+                      {t("plp.explored", {
+                        pct: Math.min(100, Math.round((12 / Math.max(items.length, 1)) * 100)),
+                      })}
+                    </span>
+                  </div>
+                  <div className="relative h-1 w-full max-w-md overflow-hidden border border-border-rule bg-surface-canvas">
+                    <div
+                      className="h-full bg-primary"
+                      style={{
+                        width: `${Math.min(100, Math.round((12 / Math.max(items.length, 1)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="font-label-caps-sm text-label-caps-sm uppercase text-text-muted">
+                    {t("plp.trust")}
+                  </span>
+                </div>
+              </>
+            )}
+          </section>
         </div>
       </div>
+
+      {/* Editorial footnote banner */}
+      <section className="w-full border-t border-border-rule bg-surface-canvas px-margin-mobile py-unit-2xl sm:px-margin-desktop">
+        <div className="grid grid-cols-1 gap-unit-xl md:grid-cols-3">
+          <Footnote>
+            <span className="font-mono-technical text-label-caps-sm font-bold uppercase text-status-cod">
+              01 / {t("plp.foot1.kicker")}
+            </span>
+            <h4 className="font-headline-sm text-headline-sm uppercase text-primary">
+              {t("plp.foot1.title")}
+            </h4>
+            <p className="font-body-utility text-body-utility text-text-muted">
+              {t("plp.foot1.body")}
+            </p>
+          </Footnote>
+          <Footnote>
+            <span className="font-mono-technical text-label-caps-sm font-bold uppercase text-status-cod">
+              02 / {t("plp.foot2.kicker")}
+            </span>
+            <h4 className="font-headline-sm text-headline-sm uppercase text-primary">
+              {t("plp.foot2.title")}
+            </h4>
+            <p className="font-body-utility text-body-utility text-text-muted">
+              {t("plp.foot2.body")}
+            </p>
+          </Footnote>
+          <Footnote>
+            <span className="font-mono-technical text-label-caps-sm font-bold uppercase text-accent-crimson">
+              03 / {t("plp.foot3.kicker")}
+            </span>
+            <h4 className="font-headline-sm text-headline-sm uppercase text-primary">
+              {t("plp.foot3.title")}
+            </h4>
+            <p className="font-body-utility text-body-utility text-text-muted">
+              {t("plp.foot3.body")}
+            </p>
+          </Footnote>
+        </div>
+      </section>
 
       {/* Mobile filter drawer */}
       <div
         onClick={() => setMobileFilters(false)}
-        className={`fixed inset-0 z-50 bg-ink/30 transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-50 bg-surface-charcoal/40 transition-opacity duration-300 lg:hidden ${
           mobileFilters ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden="true"
       />
       <aside
-        className={`fixed bottom-0 left-0 top-0 z-50 w-80 max-w-[85vw] overflow-y-auto bg-canvas px-8 py-6 transition-transform duration-300 ease-out lg:hidden ${
+        className={`fixed bottom-0 left-0 top-0 z-50 w-80 max-w-[85vw] overflow-y-auto border-r border-border-rule bg-surface-paper transition-transform duration-300 ease-out lg:hidden ${
           mobileFilters ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label={t("plp.showFilters")}
       >
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-lg font-medium uppercase text-ink">
-            {t("plp.showFilters")}
+        <div className="mb-2 flex items-center justify-between border-b border-border-rule px-unit-md py-4">
+          <h2 className="font-label-caps text-label-caps uppercase text-primary">
+            {t("plp.filters")}
           </h2>
-          <IconButton label={t("cart.close")} onClick={() => setMobileFilters(false)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M6 6 L18 18 M18 6 L6 18" />
-            </svg>
+          <IconButton
+            label={t("cart.close")}
+            onClick={() => setMobileFilters(false)}
+            className="h-10 w-10 border border-border-rule bg-surface-paper"
+          >
+            <CloseIcon className="h-4 w-4" />
           </IconButton>
         </div>
         {Filters}
-        <button
-          type="button"
-          onClick={() => setMobileFilters(false)}
-          className="press focus-kill mt-10 inline-flex h-12 w-full items-center justify-center rounded-lg bg-ink px-8 text-sm font-medium lowercase text-on-primary transition-colors hover:bg-charcoal"
-        >
-          {t("cart.viewCatalogue")}
-        </button>
+        <div className="p-unit-md">
+          <button
+            type="button"
+            onClick={() => setMobileFilters(false)}
+            className="press focus-kill inline-flex h-12 w-full items-center justify-center bg-primary px-unit-md font-label-caps text-label-caps uppercase text-on-primary"
+          >
+            {t("cart.viewCatalogue")}
+          </button>
+        </div>
       </aside>
     </>
   );
 }
 
-function Chevron() {
+function Pill({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M9 6 L15 12 L9 18" />
-    </svg>
+    <div className="inline-flex items-center gap-unit-xs border border-border-dark bg-surface-canvas px-unit-sm py-1 font-mono-technical text-label-caps text-primary">
+      <span className="uppercase">{label}</span>
+      <button
+        type="button"
+        aria-label={`Remove filter ${label}`}
+        onClick={onRemove}
+        className="flex items-center transition-colors hover:text-accent-crimson"
+      >
+        <CloseIcon className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function Footnote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-unit-xs border-l border-border-dark pl-unit-md">
+      {children}
+    </div>
   );
 }

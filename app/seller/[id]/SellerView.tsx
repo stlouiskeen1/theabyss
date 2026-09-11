@@ -1,17 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import ProductGrid from "@/components/ProductGrid";
-import { ButtonLink } from "@/components/ui";
+import { ArrowIcon } from "@/components/ui";
 import { useLang } from "@/lib/i18n";
-import {
-  asset,
-  formatPrice,
-  placeholder,
-  type Product,
-  type Seller,
-} from "@/lib/mock";
+import { asset, formatPrice, placeholder } from "@/lib/mock";
+import type { Product, Seller } from "@/lib/mock";
 
 export default function SellerView({
   seller,
@@ -33,97 +29,104 @@ export default function SellerView({
 
   return (
     <div>
-      {/* Editorial hero — mobile: stacked above the photo. Desktop: overlaid. */}
-      <section className="relative overflow-hidden bg-soft-cloud">
-        <div className="relative flex flex-col sm:aspect-[21/9] sm:block">
-          <div className="relative z-10 flex flex-col items-start gap-3 px-5 pb-6 pt-10 sm:absolute sm:inset-0 sm:justify-center sm:px-8 sm:py-0">
-            <span className="rounded-lg border border-hairline bg-canvas px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink">
-              {t("seller.seller")} — {seller.location} / {t("seller.since")}{" "}
-              {seller.founded}
-            </span>
-            <h1 className="font-display text-[13vw] font-normal uppercase leading-[0.85] tracking-tight text-ink sm:text-7xl lg:text-[88px]">
+      {/* Editorial boutique header */}
+      <section className="relative w-full overflow-hidden bg-surface-charcoal text-surface-canvas">
+        {/* Seller hero image — slot "seller-s1" .. "seller-s5". Set it in IMAGE_MAP. */}
+        <div className="relative aspect-[16/9] w-full sm:aspect-[21/9]">
+          <Image
+            src={asset(
+              `seller-${seller.id}`,
+              placeholder(`seller-${seller.id}`, 1200, 1500)
+            )}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover opacity-40"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-border-dark/90 via-border-dark/40 to-border-dark/10" />
+          <div className="absolute inset-0 flex flex-col justify-end p-unit-lg sm:p-unit-xl">
+            <div className="flex items-center gap-unit-xs">
+              <span className="font-label-caps-sm text-label-caps-sm uppercase tracking-widest text-accent-crimson">
+                {t("seller.seller")} · {seller.location} /{" "}
+                {t("seller.since")} {seller.founded}
+              </span>
+            </div>
+            <h1 className="font-display-hero text-display-hero-mobile uppercase leading-none tracking-tighter text-surface-paper sm:text-display-hero">
               {seller.name}
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="mt-unit-md flex flex-wrap items-center gap-unit-md">
               <button
                 type="button"
                 onClick={() => setFollowing((v) => !v)}
-                className={`press focus-kill inline-flex h-11 items-center rounded-lg px-6 text-sm font-medium lowercase transition-colors ${
+                className={`press focus-kill inline-flex h-11 items-center bg-surface-paper px-unit-md font-label-caps text-label-caps uppercase tracking-wider transition-colors ${
                   following
-                    ? "bg-canvas text-ink hover:bg-soft-cloud"
-                    : "bg-ink text-on-primary hover:bg-charcoal"
+                    ? "text-primary hover:bg-surface-canvas"
+                    : "text-primary hover:bg-surface-canvas"
                 }`}
               >
                 {following ? t("seller.following") : t("seller.follow")}
               </button>
-              <span className="text-sm text-ink/70">@{seller.handle}</span>
+              <span className="font-mono-technical text-mono-technical text-surface-container-highest">
+                @{seller.handle}
+              </span>
             </div>
-          </div>
-          <div className="relative aspect-[4/5] w-full sm:absolute sm:inset-0 sm:aspect-auto">
-            {/* Seller hero image — slot "seller-s1" .. "seller-s5". Set it in IMAGE_MAP. */}
-            <Image
-              src={asset(
-                `seller-${seller.id}`,
-                placeholder(`seller-${seller.id}`, 1200, 1500)
-              )}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-contain object-center sm:object-[75%_center]"
-            />
-            <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-canvas/95 via-canvas/15 to-transparent sm:block" />
           </div>
         </div>
       </section>
 
-      {/* Stats + about */}
-      <section className="mt-12 grid gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <p className="max-w-[46ch] text-lg leading-8 text-charcoal sm:text-xl">
-          {about}
-        </p>
-        <dl className="grid h-fit grid-cols-3 gap-6 border-t border-hairline-soft pt-6">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-mute">
-              {t("seller.objects")}
-            </dt>
-            <dd className="mt-1 text-2xl font-medium tabular-nums text-ink">
-              {products.length}
-            </dd>
+      {/* Stats row */}
+      <section className="w-full bg-surface-paper">
+        <div className="w-full px-margin-mobile py-unit-xl sm:px-margin-desktop">
+          <div className="grid grid-cols-1 items-start gap-unit-xl md:grid-cols-12">
+            <p className="max-w-[52ch] font-body-editorial text-body-editorial text-text-muted md:col-span-7">
+              {about}
+            </p>
+            <dl className="grid h-fit grid-cols-3 gap-unit-md border-t border-border-rule pt-unit-md md:col-span-5">
+              <Stat label={t("seller.objects")} value={String(products.length)} />
+              <Stat label={t("seller.range")} value={range} />
+              <Stat label={t("seller.origin")} value={seller.location} />
+            </dl>
           </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-mute">
-              {t("seller.range")}
-            </dt>
-            <dd className="mt-1 text-2xl font-medium tabular-nums text-ink">
-              {range}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-mute">
-              {t("seller.origin")}
-            </dt>
-            <dd className="mt-1 text-2xl font-medium text-ink">
-              {seller.location}
-            </dd>
-          </div>
-        </dl>
+        </div>
       </section>
 
       {/* Catalogue */}
-      <section className="mt-12 flex flex-col gap-6 pb-4">
-        <div className="flex items-center justify-between px-5 sm:px-8">
-          <h2 className="text-[28px] font-medium uppercase tracking-tight text-ink">
-            {t("seller.shopAll")}
-          </h2>
-          <ButtonLink href="/category/all" variant="secondary" className="hidden sm:inline-flex">
-            {t("home.viewAll")}
-          </ButtonLink>
-        </div>
-        <div className="px-2 sm:px-6">
+      <section className="w-full bg-surface-canvas py-unit-2xl">
+        <div className="w-full px-margin-mobile sm:px-margin-desktop">
+          <div className="flex flex-col justify-between gap-unit-sm pb-unit-lg sm:flex-row sm:items-end">
+            <div>
+              <span className="font-label-caps text-label-caps uppercase tracking-widest text-accent-crimson">
+                {t("seller.objects")}
+              </span>
+              <h2 className="font-headline-lg text-headline-lg uppercase tracking-tighter text-primary">
+                {t("seller.shopAll")}
+              </h2>
+            </div>
+            <Link
+              href="/category/all"
+              className="press focus-kill inline-flex h-12 items-center justify-center gap-unit-sm bg-border-dark px-unit-xl font-label-caps text-label-caps uppercase text-surface-canvas transition-all duration-150 hover:bg-primary"
+            >
+              {t("home.viewAll")}
+              <ArrowIcon />
+            </Link>
+          </div>
           <ProductGrid items={products} initial={products.length} step={0} cols={4} />
         </div>
       </section>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-unit-2xs">
+      <dt className="font-label-caps-sm text-label-caps-sm uppercase text-text-muted">
+        {label}
+      </dt>
+      <dd className="font-mono-technical text-headline-sm font-bold tabular-nums text-primary">
+        {value}
+      </dd>
     </div>
   );
 }

@@ -1,104 +1,167 @@
 "use client";
 
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { LANGUAGES, useLang } from "@/lib/i18n";
-
-const COLUMNS = [
-  {
-    titleKey: "footer.shop",
-    links: [
-      { key: "footer.link.new", href: "/category/all" },
-      { key: "footer.link.apparel", href: "/category/apparel" },
-      { key: "footer.link.footwear", href: "/category/footwear" },
-      { key: "footer.link.accessories", href: "/category/accessories" },
-      { key: "footer.link.outerwear", href: "/category/outerwear" },
-    ],
-  },
-  {
-    titleKey: "footer.help",
-    links: [
-      { key: "footer.link.contact", href: "/" },
-      { key: "footer.link.shipping", href: "/" },
-      { key: "footer.link.size", href: "/" },
-    ],
-  },
-  {
-    titleKey: "footer.company",
-    links: [
-      { key: "footer.link.about", href: "/" },
-      { key: "footer.link.careers", href: "/" },
-      { key: "footer.link.sustainability", href: "/" },
-    ],
-  },
-  {
-    titleKey: "footer.sellers",
-    links: [
-      { key: "footer.link.start", href: "/" },
-      { key: "footer.link.stories", href: "/seller/s1" },
-      { key: "footer.link.fees", href: "/" },
-    ],
-  },
-] as const;
+import { useLang } from "@/lib/i18n";
+import { ArrowIcon } from "@/components/ui";
 
 export default function Footer() {
-  const { lang, setLang, t } = useLang();
+  const { t } = useLang();
   const year = new Date().getFullYear();
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
+
+  const subscribe = (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setEmail("");
+    setSubscribed(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setSubscribed(false), 3200);
+  };
 
   return (
-    <footer className="bg-canvas">
-      <div className="grid grid-cols-2 gap-x-8 gap-y-10 border-t border-hairline px-5 py-12 sm:px-8 md:grid-cols-4">
-        {COLUMNS.map((col) => (
-          <div key={col.titleKey as string}>
-            <h3 className="text-sm font-medium uppercase text-ink">
-              {t(col.titleKey)}
-            </h3>
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {col.links.map((l) => (
-                <li key={l.key}>
-                  <Link
-                    href={l.href}
-                    className="text-sm leading-snug text-mute transition-colors hover:text-ink hover:underline hover:underline-offset-2"
-                  >
-                    {t(l.key)}
-                  </Link>
-                </li>
-              ))}
+    <footer className="mt-unit-4xl w-full border-t border-border-rule bg-surface-paper text-on-surface">
+      <div className="w-full px-margin-mobile py-unit-3xl sm:px-margin-desktop">
+        <div className="grid grid-cols-1 gap-unit-2xl border-b border-border-rule pb-unit-3xl md:grid-cols-2 lg:grid-cols-4">
+          {/* Brand */}
+          <div className="flex flex-col gap-unit-md">
+            <div className="font-headline-lg text-headline-sm font-bold uppercase tracking-tighter text-primary">
+              ABYSS
+            </div>
+            <p className="max-w-sm font-body-editorial text-body-editorial text-text-muted">
+              {t("footer.about")}
+            </p>
+            <div className="inline-flex w-fit items-center gap-unit-xs border border-status-cod bg-surface-canvas px-unit-sm py-1">
+              <span className="inline-block h-2 w-2 bg-status-cod" />
+              <span className="font-label-caps-sm text-label-caps-sm uppercase text-status-cod">
+                {t("footer.badge")}
+              </span>
+            </div>
+          </div>
+
+          {/* Logistics & Territory */}
+          <div className="flex flex-col gap-unit-sm">
+            <span className="border-b border-border-rule pb-unit-xs font-label-caps text-label-caps uppercase tracking-widest text-primary">
+              {t("footer.logistics")}
+            </span>
+            <ul className="flex flex-col gap-unit-xs font-body-utility text-body-utility text-text-muted">
+              <li className="flex justify-between border-b border-border-rule py-1">
+                <span className="font-mono-technical text-label-caps uppercase">
+                  {t("footer.stopDesk")}
+                </span>
+                <span className="font-mono-technical font-bold text-primary">
+                  400-600 DZD
+                </span>
+              </li>
+              <li className="flex justify-between border-b border-border-rule py-1">
+                <span className="font-mono-technical text-label-caps uppercase">
+                  {t("footer.homeDelivery")}
+                </span>
+                <span className="font-mono-technical font-bold text-primary">
+                  700-1200 DZD
+                </span>
+              </li>
+              <li className="flex justify-between border-b border-border-rule py-1">
+                <span className="font-mono-technical text-label-caps uppercase">
+                  {t("footer.authentication")}
+                </span>
+                <span className="font-mono-technical font-bold text-status-cod">
+                  {t("footer.hub")}
+                </span>
+              </li>
+              <li className="pt-unit-xs font-label-caps-sm text-label-caps-sm uppercase text-text-muted">
+                {t("footer.inspectNote")}
+              </li>
             </ul>
           </div>
-        ))}
-      </div>
 
-      <div className="border-t border-hairline">
-        <div className="flex flex-col gap-4 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p className="text-xs leading-relaxed text-mute">
-            {t("footer.rights", { year })}
-          </p>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium uppercase tracking-wide text-mute">
-            <span>{t("footer.country")}</span>
-            <div className="flex items-center gap-1">
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => setLang(l.code)}
-                  aria-pressed={lang === l.code}
-                  className={`px-2 py-1 transition-colors ${
-                    lang === l.code
-                      ? "text-ink underline decoration-ink decoration-2 underline-offset-4"
-                      : "hover:text-ink"
-                  }`}
+          {/* Boutiques ecosystem */}
+          <div className="flex flex-col gap-unit-sm">
+            <span className="border-b border-border-rule pb-unit-xs font-label-caps text-label-caps uppercase tracking-widest text-primary">
+              {t("footer.ecosystem")}
+            </span>
+            <ul className="flex flex-col gap-unit-sm font-body-utility text-body-utility text-text-muted">
+              <li>
+                <Link
+                  href="/seller/s1"
+                  className="flex items-center justify-between border border-primary px-unit-sm py-unit-xs font-label-caps-sm text-label-caps-sm font-bold uppercase text-primary transition-colors hover:bg-primary hover:text-on-primary"
                 >
-                  {l.label}
+                  <span>{t("footer.partnerCta")}</span>
+                  <ArrowIcon size={14} />
+                </Link>
+              </li>
+              <li>
+                <Link href="/seller/s1" className="hover:text-primary transition-colors">
+                  {t("footer.indexCreators")}
+                </Link>
+              </li>
+              <li>
+                <Link href="/" className="hover:text-primary transition-colors">
+                  {t("footer.charter")}
+                </Link>
+              </li>
+              <li>
+                <Link href="/" className="hover:text-primary transition-colors">
+                  {t("footer.returnPolicy")}
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Archive bulletin */}
+          <div className="flex flex-col gap-unit-md">
+            <span className="border-b border-border-rule pb-unit-xs font-label-caps text-label-caps uppercase tracking-widest text-primary">
+              {t("footer.newsletterTitle")}
+            </span>
+            <p className="font-body-utility text-body-utility text-text-muted">
+              {t("footer.newsletterSub")}
+            </p>
+            <form onSubmit={subscribe} className="flex flex-col gap-unit-xs">
+              <div className="flex items-center border-b border-primary">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-label={t("footer.newsletterTitle")}
+                  placeholder={t("footer.newsletterPlaceholder")}
+                  className="w-full bg-transparent py-unit-xs font-mono-technical text-mono-technical uppercase text-primary outline-none placeholder:text-text-muted"
+                />
+                <button
+                  type="submit"
+                  aria-label={t("home.newsletterCta")}
+                  className="px-unit-xs text-primary transition-colors hover:text-accent-crimson"
+                >
+                  <ArrowIcon size={18} />
                 </button>
-              ))}
-            </div>
-            <span className="h-3 w-px bg-hairline" aria-hidden="true" />
-            <Link href="/" className="transition-colors hover:text-ink">
-              {t("footer.terms")}
-            </Link>
-            <Link href="/" className="transition-colors hover:text-ink">
-              {t("footer.privacy")}
-            </Link>
+              </div>
+              <span className="font-label-caps-sm text-label-caps-sm text-status-cod">
+                {subscribed ? t("footer.newsletterDone") : t("footer.newsletterNote")}
+              </span>
+            </form>
+          </div>
+        </div>
+
+        {/* Legal row */}
+        <div className="flex flex-col items-center justify-between gap-unit-md pt-unit-lg font-label-caps-sm text-label-caps-sm uppercase text-text-muted md:flex-row">
+          <div className="flex items-center gap-unit-lg">
+            <span>{t("footer.rightsLong", { year })}</span>
+            <span className="hidden sm:inline-block">·</span>
+            <span>{t("footer.cities")}</span>
+          </div>
+          <div className="flex items-center gap-unit-lg">
+            <span>{t("footer.conditions")}</span>
+            <span>{t("footer.privacy")}</span>
+            <span>{t("footer.legal")}</span>
+            <span className="font-mono-technical text-primary">{t("footer.reg")}</span>
           </div>
         </div>
       </div>

@@ -14,9 +14,9 @@ type Props = {
 };
 
 const COLS: Record<number, string> = {
-  2: "grid-cols-2",
-  3: "grid-cols-2 md:grid-cols-3",
-  4: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
+  4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4",
 };
 
 export default function ProductGrid({
@@ -64,7 +64,7 @@ export default function ProductGrid({
 
   return (
     <div>
-      <div className={`grid gap-1 md:gap-2 ${COLS[cols]}`}>
+      <div className={`grid gap-gutter-desktop ${COLS[cols]}`}>
         {shown.map((item) => (
           <ProductCard key={item.id} product={item} />
         ))}
@@ -77,12 +77,12 @@ export default function ProductGrid({
             <button
               type="button"
               onClick={() => setVisible((v) => v + step)}
-              className="press focus-kill inline-flex h-12 items-center justify-center rounded-lg border border-hairline bg-canvas px-8 text-sm font-medium text-ink transition-colors hover:border-ink"
+              className="press focus-kill inline-flex h-12 items-center justify-center gap-unit-xs px-unit-xl font-label-caps text-label-caps uppercase tracking-wider text-primary shadow-sm ring-1 ring-border-rule transition-all hover:bg-surface-canvas hover:ring-primary"
             >
               {t("home.loadMore")}
             </button>
           ) : (
-            <p className="text-xs font-medium uppercase tracking-wide text-stone">
+            <p className="font-label-caps-sm text-label-caps-sm uppercase tracking-wider text-text-muted">
               {t("home.end")}
             </p>
           )}

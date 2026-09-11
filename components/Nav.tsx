@@ -22,36 +22,17 @@ import {
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { useWishlist } from "@/lib/wishlist";
-import { BagIcon, HeartIcon, SearchIcon } from "@/components/ui";
+import {
+  BagIcon,
+  CloseIcon,
+  HeartGlyph,
+  MenuIcon,
+  PersonIcon,
+  SearchIcon,
+} from "@/components/ui";
 
 const UTILITY_LABELS = ["seller", "help", "join"] as const;
 const GENDERS = ["WOMEN", "MEN"] as const;
-
-function LangToggle({ column = false }: { column?: boolean }) {
-  const { lang, setLang } = useLang();
-  return (
-    <div
-      className={`flex items-center ${column ? "flex-col items-start gap-1" : "gap-1"}`}
-    >
-      <span className="sr-only">Language / Langue</span>
-      {LANGUAGES.map((l) => (
-        <button
-          key={l.code}
-          type="button"
-          onClick={() => setLang(l.code)}
-          aria-pressed={lang === l.code}
-          className={`focus-kill px-2 py-1 text-[12px] font-medium uppercase tracking-wide transition-colors ${
-            lang === l.code
-              ? "text-ink underline decoration-ink decoration-2 underline-offset-4"
-              : "text-mute hover:text-ink"
-          }`}
-        >
-          {l.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function ChevronDown({ open }: { open: boolean }) {
   return (
@@ -70,6 +51,37 @@ function ChevronDown({ open }: { open: boolean }) {
 }
 
 type Row = { key: string; href: string; label: string };
+
+const LANG_PILL_ACTIVE =
+  "px-unit-sm py-unit-2xs bg-primary text-on-primary font-label-caps-sm text-label-caps-sm uppercase leading-none";
+const LANG_PILL_IDLE =
+  "px-unit-sm py-unit-2xs text-text-muted hover:text-primary font-label-caps-sm text-label-caps-sm uppercase leading-none";
+
+function LangToggle({ column = false }: { column?: boolean }) {
+  const { lang, setLang } = useLang();
+  return (
+    <div
+      className={`flex items-center border border-border-rule p-unit-2xs ${
+        column ? "" : ""
+      }`}
+    >
+      <span className="sr-only">Language / Langue</span>
+      {LANGUAGES.map((l) => (
+        <button
+          key={l.code}
+          type="button"
+          onClick={() => setLang(l.code)}
+          aria-pressed={lang === l.code}
+          className={`focus-kill transition-colors ${
+            lang === l.code ? LANG_PILL_ACTIVE : LANG_PILL_IDLE
+          } ${column ? "w-14 justify-center" : ""}`}
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function Nav() {
   const pathname = usePathname();
@@ -213,14 +225,14 @@ export default function Nav() {
           <Link
             key={l.href}
             href={l.href}
-            className="focus-kill group flex items-baseline gap-2 text-sm text-ink transition-colors hover:text-charcoal"
+            className="focus-kill group flex items-baseline gap-2 text-sm text-primary transition-colors hover:text-accent-crimson"
           >
             <span
-              className={`${l.primary ? "font-medium underline underline-offset-4" : "uppercase"}`}
+              className={`${l.primary ? "font-bold underline underline-offset-4" : "uppercase"}`}
             >
               {l.label}
             </span>
-            <span className="text-xs tabular-nums text-mute transition-colors group-hover:text-charcoal">
+            <span className="text-xs tabular-nums text-text-muted transition-colors group-hover:text-primary">
               {l.count}
             </span>
           </Link>
@@ -235,10 +247,10 @@ export default function Nav() {
         <Link
           key={l.href}
           href={l.href}
-          className="focus-kill group flex items-baseline gap-2 text-sm uppercase text-ink transition-colors hover:text-charcoal"
+          className="focus-kill group flex items-baseline gap-2 text-sm uppercase text-primary transition-colors hover:text-accent-crimson"
         >
           <span>{l.label}</span>
-          <span className="text-xs tabular-nums text-mute transition-colors group-hover:text-charcoal">
+          <span className="text-xs tabular-nums text-text-muted transition-colors group-hover:text-primary">
             {l.count}
           </span>
         </Link>
@@ -246,118 +258,155 @@ export default function Nav() {
     </div>
   );
 
+  const navLink = (r: Row) => {
+    const active = activeLink === r.key;
+    const open = openDd === r.key;
+    return (
+      <button
+        key={r.key}
+        type="button"
+        aria-expanded={open}
+        onMouseEnter={() => openDdHover(r.key)}
+        onMouseLeave={scheduleDdClose}
+        onClick={() => {
+          setOpenDd(open ? null : r.key);
+        }}
+        className={`focus-kill relative flex h-full items-center gap-1.5 pt-1 font-label-caps text-label-caps uppercase tracking-wider transition-colors ${
+          active || open
+            ? "border-b-2 border-primary text-primary font-bold"
+            : "text-text-muted hover:text-primary"
+        }`}
+      >
+        {r.label}
+        <ChevronDown open={open} />
+      </button>
+    );
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-canvas">
-      <div className="hidden h-9 items-center justify-end gap-6 border-b border-hairline-soft bg-soft-cloud px-5 text-[12px] font-medium uppercase tracking-wide text-ink sm:flex sm:px-8">
-        {UTILITY_LABELS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={showNotice}
-            className="press focus-kill text-mute transition-colors hover:text-ink"
-          >
-            {t(`utility.${k}` as "utility.help")}
-          </button>
-        ))}
-        <Link
-          href={user ? "/account" : "/account/login"}
-          className="press focus-kill text-mute transition-colors hover:text-ink"
-        >
-          {user ? t("auth.accountTitle") : t("auth.signIn")}
-        </Link>
-        <span className="h-3 w-px bg-hairline" aria-hidden="true" />
-        <LangToggle />
+    <header className="fixed left-0 right-0 top-0 z-50 w-full bg-surface-paper">
+      {/* Announcement / utility bar */}
+      <div className="hidden h-8 items-center justify-between border-b border-border-dark bg-surface-charcoal px-margin-desktop font-label-caps-sm text-label-caps-sm text-surface-canvas sm:flex">
+        <div className="flex items-center gap-unit-md uppercase">
+          <span className="inline-block h-1.5 w-1.5 bg-accent-crimson" />
+          <span>{t("nav.utilityShipping")}</span>
+        </div>
+        <div className="flex items-center gap-unit-lg uppercase text-surface-container-highest">
+          <span className="text-label-caps-sm font-mono-technical">
+            {t("nav.utilityRates")}
+          </span>
+          <Link href="/ops" className="font-bold text-surface-canvas transition-colors hover:text-accent-crimson">
+            {t("nav.ops")}
+          </Link>
+          <span className="font-bold text-surface-canvas">
+            {t("nav.utilityFree")}
+          </span>
+        </div>
       </div>
 
-      <nav className="relative flex h-14 items-center justify-between border-b border-hairline-soft px-4 sm:px-8 lg:h-16">
-        <div className="flex items-center gap-2 lg:gap-0">
-          <button
-            type="button"
-            aria-label={t("nav.menu")}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(true)}
-            className="press focus-kill -ml-2 inline-flex h-10 w-10 items-center justify-center lg:hidden"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 7 H20 M4 12 H20 M4 17 H20" />
-            </svg>
-          </button>
-          <Link href="/" className="focus-kill font-display text-[26px] leading-none tracking-tight text-ink transition-opacity hover:opacity-75">
-            ABYSS
-          </Link>
-        </div>
+      {/* Main bar */}
+      <div className="h-16 border-b border-border-rule bg-surface-paper px-margin-mobile sm:px-margin-desktop">
+        <div className="flex h-full w-full items-center justify-between">
+          <div className="flex items-center gap-unit-md lg:gap-unit-xl">
+            <button
+              type="button"
+              aria-label={t("nav.menu")}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+              className="press focus-kill -ml-2 inline-flex h-10 w-10 items-center justify-center text-primary lg:hidden"
+            >
+              <MenuIcon />
+            </button>
+            <Link
+              href="/"
+              className="focus-kill select-none font-display-hero text-headline-sm uppercase tracking-tighter text-primary transition-opacity hover:opacity-75"
+            >
+              ABYSS
+            </Link>
+            <span className="hidden border-l border-border-rule pl-unit-md font-label-caps-sm text-label-caps-sm uppercase text-text-muted xl:inline-block">
+              {t("nav.tagline")}
+            </span>
+          </div>
 
-        <div className="hidden items-center gap-8 lg:flex">
-          {navRows.map((r) => {
-            const active = activeLink === r.key;
-            const open = openDd === r.key;
-            return (
-              <button
-                key={r.key}
-                type="button"
-                aria-expanded={open}
-                onMouseEnter={() => openDdHover(r.key)}
-                onMouseLeave={scheduleDdClose}
-                onClick={() => {
-                  // Toggle on click too, so keyboard/mouse users can still
-                  // cycle the flyout; the label still opens the category.
-                  setOpenDd(open ? null : r.key);
-                }}
-                className={`press relative flex items-center gap-1.5 py-1 text-sm font-medium uppercase text-ink transition-colors hover:text-charcoal ${
-                  active || open
-                    ? "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-ink"
-                    : "hover:after:absolute hover:after:inset-x-0 hover:after:bottom-0 hover:after:h-0.5 hover:after:bg-ink"
-                }`}
-              >
-                {r.label}
-                <ChevronDown open={open} />
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          <form
-            onSubmit={submit}
-            className="hidden h-10 w-56 items-center gap-2 rounded-md bg-soft-cloud px-4 transition-colors focus-within:border focus-within:border-ink focus-within:bg-canvas md:flex"
+          <nav
+            className="hidden h-full items-center gap-unit-lg lg:flex"
+            aria-label={t("nav.shop")}
           >
-            <SearchIcon className="shrink-0 text-mute" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("nav.searchPlaceholder")}
-              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-mute"
-            />
-          </form>
+            {navRows.map(navLink)}
+          </nav>
 
-          <button
-            type="button"
-            aria-label={t("nav.search")}
-            onClick={() => {
-              setSearchOpen((o) => !o);
-            }}
-            className="press focus-kill inline-flex h-10 w-10 items-center justify-center rounded-md text-ink md:hidden"
-          >
-            <SearchIcon />
-          </button>
+          <div className="flex items-center gap-unit-sm lg:gap-unit-md">
+            <div className="hidden md:flex">
+              <LangToggle />
+            </div>
+            <div className="hidden items-center gap-unit-xs border border-border-rule bg-surface-canvas px-unit-sm py-1 font-mono-technical text-mono-technical text-primary md:flex">
+              <span className="inline-block h-1.5 w-1.5 bg-status-cod" />
+              <span className="uppercase font-bold tracking-wider">
+                {t("nav.wilayaCode")}
+              </span>
+              <span className="text-label-caps-sm text-text-muted">
+                {t("nav.wilayaUnit")}
+              </span>
+            </div>
 
-          <Link
-            href="/wishlist"
-            aria-label={t("wishlist.title")}
-            title={t("wishlist.title")}
-            className="press focus-kill inline-flex h-10 w-10 items-center justify-center text-ink"
-          >
-            <HeartIcon filled={wishCount > 0} />
-          </Link>
+            <button
+              type="button"
+              aria-label={t("nav.searchArchive")}
+              aria-expanded={searchOpen}
+              onClick={() => {
+                setSearchOpen((o) => !o);
+                if (!searchOpen) {
+                  window.setTimeout(
+                    () => searchInputRef.current?.focus(),
+                    50
+                  );
+                }
+              }}
+              className="press focus-kill flex h-9 w-9 items-center justify-center border border-border-rule text-primary transition-colors hover:bg-surface-canvas lg:w-fit lg:gap-unit-xs lg:px-unit-sm"
+            >
+              <SearchIcon className="h-[18px] w-[18px]" />
+              <span className="hidden font-label-caps-sm text-label-caps-sm uppercase tracking-wider lg:inline">
+                {t("nav.search")}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            aria-label={t("nav.bag")}
-            onClick={openCart}
-            className="press focus-kill inline-flex h-10 w-10 items-center justify-center text-ink"
-          >
-            <BagIcon count={count} />
-          </button>
+            <Link
+              href="/wishlist"
+              aria-label={t("wishlist.title")}
+              title={t("wishlist.title")}
+              className="press focus-kill relative flex h-9 w-9 items-center justify-center border border-border-rule text-primary transition-colors hover:bg-surface-canvas"
+            >
+              <HeartGlyph size={18} filled={wishCount > 0} />
+              {wishCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center bg-accent-crimson font-mono-technical text-[9px] leading-none text-on-error">
+                  {wishCount}
+                </span>
+              ) : null}
+              <span className="sr-only">{wishCount}</span>
+            </Link>
+
+            <button
+              type="button"
+              aria-label={t("nav.bag")}
+              onClick={openCart}
+              className="press focus-kill flex h-9 items-center gap-unit-xs border border-border-rule px-unit-sm text-primary transition-colors hover:bg-surface-canvas"
+            >
+              <BagIcon count={count} />
+              <span className="hidden font-mono-technical text-mono-technical font-bold sm:inline">
+                {count}
+              </span>
+            </button>
+
+            <Link
+              href={user ? "/account" : "/account/login"}
+              aria-label={user ? t("auth.accountTitle") : t("auth.signIn")}
+              className="focus-kill flex items-center pl-unit-xs"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
+                <PersonIcon size={18} className="text-on-primary" />
+              </span>
+            </Link>
+          </div>
         </div>
 
         {/* Desktop category flyout — shown on hover. `ddRef` + shared timer
@@ -372,17 +421,17 @@ export default function Nav() {
               }
             }}
             onMouseLeave={scheduleDdClose}
-            className="absolute inset-x-0 top-full z-40 hidden border-b border-hairline-soft bg-canvas lg:block"
+            className="absolute inset-x-0 top-full z-40 hidden border-b border-border-rule bg-surface-paper lg:block"
           >
-            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-16 px-8 py-9">
+            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-16 px-margin-desktop py-unit-xl">
               <div>
-                <h3 className="mb-4 text-xs font-medium uppercase tracking-wide text-mute">
+                <h3 className="mb-4 font-label-caps-sm text-label-caps-sm uppercase tracking-wider text-text-muted">
                   {t("nav.shop")}
                 </h3>
                 {subList(openDd)}
               </div>
               <div>
-                <h3 className="mb-4 text-xs font-medium uppercase tracking-wide text-mute">
+                <h3 className="mb-4 font-label-caps-sm text-label-caps-sm uppercase tracking-wider text-text-muted">
                   {t("nav.designedFor")}
                 </h3>
                 {genderList(openDd)}
@@ -390,27 +439,36 @@ export default function Nav() {
             </div>
           </div>
         ) : null}
-      </nav>
+      </div>
 
       {searchOpen ? (
-        <div className="border-b border-hairline-soft px-4 py-3 md:hidden">
+        <div className="border-b border-border-rule bg-surface-canvas px-margin-mobile py-unit-sm sm:px-margin-desktop">
           <form
             onSubmit={submit}
-            className="flex h-10 items-center gap-2 rounded-md bg-soft-cloud px-4"
+            className="flex h-11 items-center gap-unit-sm border-b border-primary bg-surface-paper px-unit-md"
           >
-            <SearchIcon className="shrink-0 text-mute" />
+            <SearchIcon className="shrink-0 text-primary" />
             <input
               ref={searchInputRef}
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("nav.searchPlaceholder")}
-              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-mute"
+              className="w-full bg-transparent font-mono-technical text-mono-technical uppercase text-primary outline-none placeholder:text-text-muted"
             />
+            <button
+              type="button"
+              aria-label={t("nav.close")}
+              onClick={() => setSearchOpen(false)}
+              className="press focus-kill text-primary"
+            >
+              <CloseIcon className="h-[18px] w-[18px]" />
+            </button>
           </form>
         </div>
       ) : null}
 
+      {/* Mobile drawer */}
       {menuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -418,20 +476,18 @@ export default function Nav() {
             onClick={() => setMenuOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col bg-canvas">
-            <div className="flex items-center justify-between border-b border-hairline-soft px-5 py-4">
-              <span className="font-display text-xl tracking-tight text-ink">
+          <div className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col bg-surface-paper">
+            <div className="flex items-center justify-between border-b border-border-rule px-5 py-4">
+              <span className="select-none font-display-hero text-headline-sm uppercase tracking-tighter text-primary">
                 ABYSS
               </span>
               <button
                 type="button"
                 aria-label={t("nav.close")}
                 onClick={() => setMenuOpen(false)}
-                className="press focus-kill inline-flex h-10 w-10 items-center justify-center text-ink"
+                className="press focus-kill flex h-10 w-10 items-center justify-center text-primary"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M6 6 L18 18 M18 6 L6 18" />
-                </svg>
+                <CloseIcon />
               </button>
             </div>
 
@@ -441,13 +497,15 @@ export default function Nav() {
                   const active = activeLink === r.key;
                   const open = expandedRow === r.key;
                   return (
-                    <div key={r.key} className="border-b border-hairline-soft">
+                    <div key={r.key} className="border-b border-border-rule">
                       <div className="flex items-center justify-between gap-3">
                         <Link
                           href={r.href}
                           onClick={() => setMenuOpen(false)}
                           className={`focus-kill py-4 text-2xl font-medium uppercase tracking-tight ${
-                            active ? "text-ink underline underline-offset-8" : "text-ink hover:text-charcoal"
+                            active
+                              ? "text-primary underline underline-offset-8"
+                              : "text-primary hover:text-accent-crimson"
                           }`}
                         >
                           {r.label}
@@ -457,7 +515,7 @@ export default function Nav() {
                           aria-label={r.label}
                           aria-expanded={open}
                           onClick={() => setExpandedRow(open ? null : r.key)}
-                          className="press focus-kill p-2 text-ink"
+                          className="press focus-kill p-2 text-primary"
                         >
                           <ChevronDown open={open} />
                         </button>
@@ -468,7 +526,7 @@ export default function Nav() {
                             <Link
                               href="/category/all"
                               onClick={() => setMenuOpen(false)}
-                              className="focus-kill text-sm font-medium uppercase text-ink transition-colors hover:text-charcoal"
+                              className="focus-kill text-sm font-bold uppercase text-primary transition-colors hover:text-accent-crimson"
                             >
                               {t("nav.allShop")}
                             </Link>
@@ -478,25 +536,25 @@ export default function Nav() {
                               key={l.href}
                               href={l.href}
                               onClick={() => setMenuOpen(false)}
-                              className={`focus-kill flex items-baseline gap-2 text-sm transition-colors hover:text-charcoal ${
+                              className={`focus-kill flex items-baseline gap-2 text-sm transition-colors hover:text-accent-crimson ${
                                 l.primary
-                                  ? "font-medium text-ink underline underline-offset-4"
-                                  : "uppercase text-ink"
+                                  ? "font-bold text-primary underline underline-offset-4"
+                                  : "uppercase text-primary"
                               }`}
                             >
                               {l.label}
-                              <span className="text-xs tabular-nums text-mute">
+                              <span className="text-xs tabular-nums text-text-muted">
                                 {l.count}
                               </span>
                             </Link>
                           ))}
-                          <div className="mt-1 flex gap-3 border-t border-hairline-soft pt-3 text-xs font-medium uppercase tracking-wide text-mute">
+                          <div className="mt-1 flex gap-3 border-t border-border-rule pt-3 font-label-caps-sm text-label-caps-sm uppercase tracking-wider text-text-muted">
                             {genderLinks(r.key).map((l) => (
                               <Link
                                 key={l.href}
                                 href={l.href}
                                 onClick={() => setMenuOpen(false)}
-                                className="focus-kill transition-colors hover:text-ink"
+                                className="focus-kill transition-colors hover:text-primary"
                               >
                                 {l.label} ({l.count})
                               </Link>
@@ -508,13 +566,13 @@ export default function Nav() {
                   );
                 })}
               </div>
-              <div className="mt-8 flex flex-col gap-3 text-sm font-medium uppercase tracking-wide text-mute">
+              <div className="mt-8 flex flex-col gap-3 text-sm font-medium uppercase tracking-wide text-text-muted">
                 {UTILITY_LABELS.map((k) => (
                   <button
                     key={k}
                     type="button"
                     onClick={showNotice}
-                    className="press focus-kill self-start text-mute transition-colors hover:text-ink"
+                    className="press focus-kill self-start text-text-muted transition-colors hover:text-primary"
                   >
                     {t(`utility.${k}` as "utility.help")}
                   </button>
@@ -522,13 +580,20 @@ export default function Nav() {
                 <Link
                   href={user ? "/account" : "/account/login"}
                   onClick={() => setMenuOpen(false)}
-                  className="focus-kill self-start text-mute transition-colors hover:text-ink"
+                  className="focus-kill self-start text-text-muted transition-colors hover:text-primary"
                 >
                   {user ? t("auth.accountTitle") : t("auth.signIn")}
                 </Link>
-                <div className="mt-2 border-t border-hairline-soft pt-4">
-                  <LangToggle column />
+                <div className="mt-2 border-t border-border-rule pt-4">
+                  <LangToggle />
                 </div>
+                <Link
+                  href="/ops"
+                  onClick={() => setMenuOpen(false)}
+                  className="focus-kill self-start text-text-muted transition-colors hover:text-primary"
+                >
+                  {t("nav.ops")}
+                </Link>
               </div>
             </div>
           </div>
@@ -538,7 +603,7 @@ export default function Nav() {
       {notice ? (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-ink px-5 py-3 text-sm font-medium lowercase text-on-primary"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 border border-border-dark bg-surface-charcoal px-5 py-3 font-label-caps text-label-caps uppercase tracking-wider text-surface-canvas shadow-md"
         >
           {t("utility.demoNotice")}
         </div>

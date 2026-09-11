@@ -1,47 +1,147 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand & accent */
-  --color-ink: #111111;
+  /* Stitch Abyss surfaces (Material 3 derived) */
+  --color-background: #fcf9f8;
+  --color-surface: #fcf9f8;
+  --color-surface-bright: #fcf9f8;
+  --color-surface-paper: #ffffff;
+  --color-surface-canvas: #f5f5f3;
+  --color-surface-container: #f0eded;
+  --color-surface-container-low: #f6f3f2;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #eae7e7;
+  --color-surface-container-highest: #e5e2e1;
+  --color-surface-dim: #dcd9d9;
+  --color-surface-variant: #e5e2e1;
+  --color-surface-charcoal: #121212;
+  --color-surface-tint: #5f5e5e;
+  --color-inverse-surface: #313030;
+  --color-inverse-on-surface: #f3f0ef;
+
+  --color-on-background: #1c1b1b;
+  --color-on-surface: #1c1b1b;
+  --color-on-surface-variant: #444748;
+
+  --color-primary: #000000;
   --color-on-primary: #ffffff;
-  --color-canvas: #ffffff;
-  --color-soft-cloud: #f5f5f5;
+  --color-primary-container: #1c1b1b;
+  --color-on-primary-container: #858383;
+  --color-primary-fixed: #e5e2e1;
+  --color-primary-fixed-dim: #c9c6c5;
+  --color-on-primary-fixed: #1c1b1b;
+  --color-on-primary-fixed-variant: #474646;
+  --color-inverse-primary: #c9c6c5;
 
-  /* Text */
-  --color-charcoal: #39393b;
-  --color-ash: #4b4b4d;
-  --color-mute: #707072;
-  --color-stone: #9e9ea0;
+  --color-secondary: #5d5f5d;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e2e3e1;
+  --color-on-secondary-container: #636563;
+  --color-secondary-fixed: #e2e3e1;
+  --color-secondary-fixed-dim: #c6c7c5;
+  --color-on-secondary-fixed: #1a1c1b;
+  --color-on-secondary-fixed-variant: #454746;
 
-  /* Hairlines */
-  --color-hairline: #cacacb;
-  --color-hairline-soft: #e5e5e5;
+  --color-tertiary: #000000;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #410007;
+  --color-on-tertiary-container: #f63949;
+  --color-tertiary-fixed: #ffdad8;
+  --color-tertiary-fixed-dim: #ffb3b1;
+  --color-on-tertiary-fixed: #410007;
+  --color-on-tertiary-fixed-variant: #92001c;
 
-  /* Semantic */
-  --color-sale: #d30005;
-  --color-sale-deep: #780700;
-  --color-success: #007d48;
-  --color-success-bright: #1eaa52;
-  --color-info: #1151ff;
-  --color-info-deep: #0034e3;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
 
-  /* Category accents (swatch dots / soft editorial moments only) */
-  --color-accent-pink: #ed1aa0;
-  --color-accent-pink-soft: #ffb0dd;
-  --color-accent-purple-soft: #beaffd;
-  --color-accent-purple-pale: #d6d1ff;
-  --color-accent-teal: #0a7281;
-  --color-accent-pink-deep: #4c012d;
+  --color-outline: #747878;
+  --color-outline-variant: #c4c7c7;
 
-  /* Radius scale */
-  --radius-sm: 18px;
-  --radius-md: 24px;
-  --radius-lg: 30px;
+  /* Abyss brand */
+  --color-accent-crimson: #c8102e;
+  --color-accent-crimson-hover: #a50d25;
+  --color-status-cod: #1e392a;
+  --color-border-dark: #0a0a0a;
+  --color-border-rule: #e2e2df;
+  --color-text-muted: #6e6e6b;
+
+  /* Radius */
+  --radius: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Spacing (Stitch unit scale) */
+  --spacing-unit-2xs: 2px;
+  --spacing-unit-xs: 4px;
+  --spacing-unit-sm: 8px;
+  --spacing-unit-md: 16px;
+  --spacing-unit-lg: 24px;
+  --spacing-unit-xl: 32px;
+  --spacing-unit-2xl: 48px;
+  --spacing-unit-3xl: 64px;
+  --spacing-unit-4xl: 96px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 32px;
+  --spacing-gutter-mobile: 8px;
+  --spacing-gutter-desktop: 16px;
 
   /* Fonts */
-  --font-display: var(--font-abyss-display), Anton, Impact, sans-serif;
-  --font-sans: var(--font-abyss-ui), "Helvetica Now TT", "Helvetica Neue",
-    Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-body-editorial: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-body-utility: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-headline-lg: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-headline-lg-mobile: var(--font-space-grotesk), ui-sans-serif,
+    system-ui, sans-serif;
+  --font-headline-sm: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display-hero: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display-hero-mobile: var(--font-space-grotesk), ui-sans-serif,
+    system-ui, sans-serif;
+  --font-label-caps: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-label-caps-sm: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-mono-technical: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+
+  /* Type scale */
+  --text-display-hero: 64px;
+  --text-display-hero--line-height: 68px;
+  --text-display-hero--letter-spacing: -0.04em;
+  --text-display-hero-mobile: 36px;
+  --text-display-hero-mobile--line-height: 40px;
+  --text-display-hero-mobile--letter-spacing: -0.03em;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 38px;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 28px;
+  --text-headline-lg-mobile--letter-spacing: -0.02em;
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 22px;
+  --text-headline-sm--letter-spacing: -0.01em;
+  --text-body-editorial: 15px;
+  --text-body-editorial--line-height: 24px;
+  --text-body-editorial--letter-spacing: -0.01em;
+  --text-body-utility: 13px;
+  --text-body-utility--line-height: 18px;
+  --text-body-utility--letter-spacing: 0em;
+  --text-label-caps: 11px;
+  --text-label-caps--line-height: 14px;
+  --text-label-caps--letter-spacing: 0.14em;
+  --text-label-caps-sm: 9px;
+  --text-label-caps-sm--line-height: 12px;
+  --text-label-caps-sm--letter-spacing: 0.18em;
+  --text-mono-technical: 12px;
+  --text-mono-technical--line-height: 16px;
+  --text-mono-technical--letter-spacing: 0.04em;
 }
 
 :root {
@@ -50,37 +150,39 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 64px;
+}
+
+@media (min-width: 640px) {
+  html {
+    scroll-padding-top: 96px;
+  }
 }
 
 body {
-  background: var(--color-canvas);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
+  background-color: var(--color-surface-canvas);
+  color: var(--color-on-surface);
+  font-family: var(--font-body-utility);
+  font-size: var(--text-body-utility);
+  line-height: var(--text-body-utility--line-height);
+  letter-spacing: var(--text-body-utility--letter-spacing);
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--color-ink);
+  background: var(--color-primary);
   color: var(--color-on-primary);
 }
 
+::-webkit-scrollbar {
+  display: none;
+}
+
 * {
-  scrollbar-width: thin;
-  scrollbar-color: #cacacb transparent;
-}
-
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: #cacacb;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 img,
@@ -120,26 +222,17 @@ svg {
 }
 
 @utility focus-kill {
-  &:focus-visible {
-    outline: 2px solid var(--color-ink);
-    outline-offset: 2px;
+  &:focus:not(:focus-visible) {
+    outline: none;
   }
 }
 
-/* Layered so utility classes (e.g. outline-none, outline-transparent) can
-   still override these defaults where a component wants a custom focus
-   treatment (like the nav search field's focus-within border). */
 @layer base {
-  /* Every focusable control gets a visible keyboard ring, so nothing
-     interactive is ever left without one (per-component focus-kill is the
-     primary source; this is the safety net for shared/native controls). */
   :where(button, [role="button"], a, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-ink);
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
 
-  /* Pointer cursor on all clickable controls, and an explicit not-allowed +
-     faded look for anything disabled. */
   :where(button, [role="button"], select:not(:disabled), label[for], summary) {
     cursor: pointer;
   }
@@ -147,9 +240,8 @@ svg {
     cursor: not-allowed;
   }
 
-  /* Placeholders are intentionally light but still legible on canvas. */
   ::placeholder {
-    color: var(--color-stone);
+    color: var(--color-text-muted);
     opacity: 1;
   }
 }
