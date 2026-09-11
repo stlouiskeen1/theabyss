@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+        env:
+          # Build is env-free at runtime (data degrades gracefully), but the
+          # Auth0 SDK needs values present to compile/run middleware in CI.
+          AUTH0_DOMAIN: placeholder.auth0.com
+          AUTH0_CLIENT_ID: placeholder
+          AUTH0_CLIENT_SECRET: placeholder
+          AUTH0_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          APP_BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-placeholder-anon-placeholder-anon-placeholder
