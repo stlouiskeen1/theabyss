@@ -74,3 +74,83 @@ export function listVendorPayouts(owner: string, vendorId: string) {
 export function getPublicVendor(slug: string) {
   return call<Json | null>("vendor_public_get", { p_slug: slug });
 }
+
+export type ProductUpsertInput = {
+  productId?: string | null;
+  name: string;
+  slug: string;
+  description?: string | null;
+  brand?: string | null;
+  basePrice: number;
+  status?: string | null;
+  imageUrl?: string | null;
+};
+
+export function listVendorProducts(owner: string, vendorId: string) {
+  return call<Json[]>("vendor_products_list", { p_owner: owner, p_vendor_id: vendorId });
+}
+
+export function upsertProduct(owner: string, vendorId: string, input: ProductUpsertInput) {
+  return call<Json>("vendor_product_upsert", {
+    p_owner: owner,
+    p_vendor_id: vendorId,
+    p_product_id: input.productId ?? null,
+    p_name: input.name,
+    p_slug: input.slug,
+    p_description: input.description ?? null,
+    p_brand: input.brand ?? null,
+    p_base_price: input.basePrice,
+    p_status: input.status ?? null,
+    p_image_url: input.imageUrl ?? null,
+  });
+}
+
+export function archiveProduct(owner: string, productId: string) {
+  return call<Json>("vendor_product_archive", { p_owner: owner, p_product_id: productId });
+}
+
+export function deleteProduct(owner: string, productId: string) {
+  return call<boolean>("vendor_product_delete", { p_owner: owner, p_product_id: productId });
+}
+
+export type VariantUpsertInput = {
+  variantId?: string | null;
+  size?: string | null;
+  color?: string | null;
+  sku?: string | null;
+  priceOverride?: number | null;
+  stockQuantity?: number | null;
+};
+
+export function upsertVariant(owner: string, productId: string, input: VariantUpsertInput) {
+  return call<Json>("vendor_variant_upsert", {
+    p_owner: owner,
+    p_product_id: productId,
+    p_variant_id: input.variantId ?? null,
+    p_size: input.size ?? null,
+    p_color: input.color ?? null,
+    p_sku: input.sku ?? null,
+    p_price_override: input.priceOverride ?? null,
+    p_stock_quantity: input.stockQuantity ?? null,
+  });
+}
+
+export function deleteVariant(owner: string, variantId: string) {
+  return call<boolean>("vendor_variant_delete", { p_owner: owner, p_variant_id: variantId });
+}
+
+export function setVariantStock(owner: string, variantId: string, stock: number) {
+  return call<Json>("vendor_stock_set", {
+    p_owner: owner,
+    p_variant_id: variantId,
+    p_stock: stock,
+  });
+}
+
+export function getVendorAnalytics(owner: string, vendorId: string, days = 30) {
+  return call<Json>("vendor_analytics", {
+    p_owner: owner,
+    p_vendor_id: vendorId,
+    p_days: days,
+  });
+}
