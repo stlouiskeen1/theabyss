@@ -13,7 +13,12 @@ export const dynamic = "force-dynamic";
 type AdminGuard = { ok: true } | { ok: false; status: number };
 
 async function requireAdmin(): Promise<AdminGuard> {
-  const supabase = await createClient();
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch {
+    return { ok: false, status: 500 };
+  }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, status: 401 };
   if (!isAdmin(user)) return { ok: false, status: 403 };

@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import { createClient as createSessionClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/database.types";
@@ -153,4 +155,33 @@ export function getVendorAnalytics(owner: string, vendorId: string, days = 30) {
     p_vendor_id: vendorId,
     p_days: days,
   });
+}
+
+/**
+ * Session owner id for seller API routes. Throws "unauthorized" when there is
+ * no signed-in user, and a descriptive Error otherwise — routes catch these
+ * and always answer JSON (never an HTML 500 page the client can't parse).
+ */
+export async function sessionOwnerId(): Promise<string> {
+  let supabase;
+  try {
+    supabase = await createSessionClient();
+  } catch {
+    throw new Error("Supabase is not configured (missing URL / anon key)");
+  }
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message);
+  if (!user) throw new Error("unauthorized");
+  return user.id;
+}
+
+/** Map a caught route error to a JSON response (401 for auth, else 400/500). */
+export function routeErrorResponse(e: unknown, prefix = "") {
+  const raw = e instanceof Error ? e.message : String(e);
+  const msg = prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
+  const status = msg === "unauthorized" ? 401 : msg === "forbidden" ? 403 : 500;
+  return NextResponse.json({ error: msg }, { status });
 }
