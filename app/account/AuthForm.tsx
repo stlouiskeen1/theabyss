@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth, type AuthResult } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
 import { asset, placeholder } from "@/lib/mock";
@@ -44,40 +45,89 @@ function TrayGlyph({ kind }: { kind: "info" | "success" | "error" }) {
   );
 }
 
-// Official Auth0 mark (2021 symbol), embedded from the brand SVG.
-function Auth0Mark() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-[18px] w-[18px] shrink-0"
-      viewBox="-197 -54 736 736"
-      fill="none"
-    >
-      <path
-        fill="#EB5424"
-        d="M360.33484 536.48447 288.0367 314 477.35347 176.48447c46.58386 142.73292 0 275.03106-117.01863 360zm117.01863-360L405.05534-46H171.01807l71.92547 222.48447c0 0 234.40993 0 234.40993 0zM171.01807-46H-63.019202L-134.94466 176.48447H99.092595zm-306.3354 222.48447c-46.21118 142.73292 0 275.03106 117.018625 360L53.626761 314zm117.018625 360L171.01807 674 360.33484 536.48447 171.01807 398.96894z"
-      />
-    </svg>
-  );
-}
-
 export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { t } = useLang();
-  const { signIn, signUp } = useAuth();
+  const router = useRouter();
+  const { signIn, signUp, signInGoogle, signUpGoogle, resetPassword } = useAuth();
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
 
-  // Both paths lead to Auth0's hosted Universal Login page, so this starts a
-  // full-page OAuth redirect instead of submitting an in-app form.
-  const go = (action: () => AuthResult) => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  const showError = (error: string) => {
+    setStatus({
+      kind: "error",
+      text: error.startsWith("auth.") ? t(error as never) : error,
+    });
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setStatus(null);
+
+    if (mode === "signup") {
+      if (name.trim().length < 2) {
+        setStatus({ kind: "error", text: t("auth.errNameShort") });
+        return;
+      }
+      if (password.length < 8) {
+        setStatus({ kind: "error", text: t("auth.errPasswordMin") });
+        return;
+      }
+      if (password !== confirm) {
+        setStatus({ kind: "error", text: t("auth.errConfirmMismatch") });
+        return;
+      }
+    }
+
+    setBusy(true);
+    const result: AuthResult =
+      mode === "signup" ? await signUp(name.trim(), email.trim(), password) : await signIn(email.trim(), password);
+    setBusy(false);
+    if (!result.ok) {
+      showError(result.error);
+    } else {
+      setStatus({
+        kind: "success",
+        text:
+          mode === "signup"
+            ? t("auth.statusSignupOk").replace("{email}", email.trim())
+            : t("auth.statusSigninOk").replace("{email}", email.trim()),
+      });
+      router.push("/account");
+      router.refresh();
+    }
+  };
+
+  const google = async () => {
     if (busy) return;
     setBusy(true);
-    const result = action();
+    const result = mode === "signup" ? await signUpGoogle() : await signInGoogle();
     if (!result.ok) {
       setBusy(false);
-      setStatus({ kind: "error", text: t(result.error as never) });
+      showError(result.error);
     }
+  };
+
+  const forgot = async () => {
+    if (!email.trim()) {
+      setStatus({ kind: "error", text: t("auth.errEmailRequired") });
+      return;
+    }
+    setBusy(true);
+    const result = await resetPassword(email.trim());
+    setBusy(false);
+    if (!result.ok) showError(result.error);
+    else
+      setStatus({
+        kind: "info",
+        text: t("auth.statusRecoverySent").replace("{email}", email.trim()),
+      });
   };
 
   const showLegal = (kind: "terms" | "privacy") => {
@@ -104,6 +154,11 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const legalTail =
     privacyAt >= 0 ? legal.slice(privacyAt + "{privacy}".length) : "";
 
+  const inputCls =
+    "h-12 w-full bg-surface-container-low text-primary px-unit-md rounded font-mono-technical text-mono-technical placeholder:text-text-muted/60 focus:outline-none focus:ring-1 focus:ring-primary";
+  const labelCls =
+    "font-label-caps-sm text-label-caps-sm text-text-muted uppercase tracking-widest";
+
   return (
     <div className="w-full px-margin-mobile md:px-margin-desktop py-unit-lg sm:py-unit-2xl">
       <div className="w-full max-w-[1040px] grid grid-cols-1 lg:grid-cols-12 bg-surface-paper shadow-xl rounded-xl overflow-hidden mx-auto">
@@ -115,7 +170,6 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <span className="font-label-caps text-label-caps text-surface-tint tracking-widest uppercase">
               {t("auth.clientPrivilege")}
             </span>
-            <Auth0Mark />
           </div>
 
           <div className="relative z-10 my-unit-2xl flex flex-col gap-unit-md">
@@ -198,34 +252,126 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
               </Link>
             </div>
 
-            {/* Primary Auth0 CTA — opens the hosted sign-in / sign-up flow */}
-            <div className="flex flex-col gap-unit-sm">
+            <form onSubmit={submit} className="flex flex-col gap-unit-sm">
+              {mode === "signup" && (
+                <label className="flex flex-col gap-unit-2xs">
+                  <span className={labelCls}>{t("auth.fullName")}</span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t("auth.fullNamePlaceholder")}
+                    className={inputCls}
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+              )}
+              <label className="flex flex-col gap-unit-2xs">
+                <span className={labelCls}>{t("auth.emailLabel")}</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t("auth.emailPlaceholder")}
+                  className={inputCls}
+                  autoComplete="email"
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-unit-2xs">
+                <span className={labelCls}>{t("auth.password")}</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t("auth.passwordPlaceholder")}
+                  className={inputCls}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  required
+                  minLength={8}
+                />
+              </label>
+              {mode === "signup" && (
+                <label className="flex flex-col gap-unit-2xs">
+                  <span className={labelCls}>{t("auth.confirmPassword")}</span>
+                  <input
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    placeholder={t("auth.confirmPasswordPlaceholder")}
+                    className={inputCls}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                  />
+                </label>
+              )}
               <button
-                type="button"
+                type="submit"
                 disabled={busy}
                 aria-busy={busy}
-                onClick={() => go(mode === "signup" ? signUp : signIn)}
                 className="w-full h-12 bg-primary hover:bg-surface-charcoal text-on-primary font-label-caps text-label-caps uppercase tracking-wider rounded shadow-md transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-unit-sm press focus-kill disabled:opacity-60"
               >
-                {busy ? (
-                  <Spinner />
-                ) : (
-                  <Auth0Mark />
-                )}
-                <span>
-                  {busy
-                    ? t("auth.signingIn")
-                    : t(
-                        mode === "signup"
-                          ? "auth.continueAuth0Signup"
-                          : "auth.continueAuth0"
-                      )}
-                </span>
+                {busy ? <Spinner /> : null}
+                <span>{busy ? t("auth.signingIn") : t(mode === "signup" ? "auth.signupSubmit" : "auth.submit")}</span>
               </button>
-              <p className="font-body-utility text-body-utility text-text-muted text-center leading-relaxed">
-                {t("auth.hostedNote")}
-              </p>
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={forgot}
+                  className="self-end font-mono-technical text-mono-technical text-text-muted hover:text-primary uppercase tracking-wider"
+                >
+                  {t("auth.forgot")}
+                </button>
+              )}
+            </form>
+
+            <div className="flex items-center gap-unit-sm text-text-muted">
+              <span className="h-px flex-1 bg-surface-container"></span>
+              <span className="font-label-caps-sm text-label-caps-sm uppercase">{t("auth.orEmail")}</span>
+              <span className="h-px flex-1 bg-surface-container"></span>
             </div>
+
+            <button
+              type="button"
+              disabled={busy}
+              aria-busy={busy}
+              onClick={google}
+              className="w-full h-12 bg-white hover:bg-surface-canvas text-primary border border-surface-container font-label-caps text-label-caps uppercase tracking-wider rounded shadow-sm transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-unit-sm press focus-kill disabled:opacity-60"
+            >
+              {busy ? (
+                <Spinner />
+              ) : (
+                <svg
+                  aria-hidden="true"
+                  className="h-[18px] w-[18px] shrink-0"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    fill="#EA4335"
+                  />
+                </svg>
+              )}
+              <span>
+                {busy
+                  ? t("auth.signingIn")
+                  : t(mode === "signup" ? "auth.continueGoogleSignup" : "auth.continueGoogle")}
+              </span>
+            </button>
 
             {/* Feedback tray — errors / notice summaries only */}
             {status && (

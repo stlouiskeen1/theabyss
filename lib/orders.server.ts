@@ -7,11 +7,11 @@ import type { Database, Json } from "@/types/database.types";
  *
  * Imported ONLY by route handlers / server components. The service role key is
  * never shipped to the browser; requests to these routes are additionally
- * gated by the Auth0 session + admin allowlist in the route handlers.
+ * gated by the Supabase session + admin allowlist in the route handlers.
  */
 
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ADMIN_EMAILS = (process.env.AUTH0_ADMIN_EMAILS ?? "")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.AUTH0_ADMIN_EMAILS ?? "")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter((e) => e.length > 0);
@@ -35,13 +35,13 @@ function admin(): SupabaseClient<Database> | null {
   return cached;
 }
 
-/** Minimal structural slice of the Auth0 session we rely on. */
-type SessionLike = { user?: { email?: string | null } | null };
+/** Minimal structural slice of the caller we rely on. */
+type UserLike = { email?: string | null } | null;
 
 /** Fail-closed admin check: absent config ⇒ nobody is an admin. */
-export function isAdmin(session: SessionLike | null): boolean {
+export function isAdmin(user: UserLike): boolean {
   if (ADMIN_EMAILS.length === 0) return false;
-  const email = session?.user?.email?.trim().toLowerCase();
+  const email = user?.email?.trim().toLowerCase();
   return Boolean(email && ADMIN_EMAILS.includes(email));
 }
 

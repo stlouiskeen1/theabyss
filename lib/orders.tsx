@@ -90,7 +90,7 @@ const OrdersContext = createContext<OrdersContextValue | null>(null);
  * The server (Supabase) is the source of truth. Guest checkout goes straight
  * to the order_place RPC with the public anon key (the only anon-granted
  * order function). Desk mutations (advance / cancel / collect) are admin-only
- * and go through the Auth0-gated /api/ops route; account history through
+ * and go through the session-gated /api/ops route; account history through
  * /api/account/orders. Without Supabase keys the whole flow falls back to the
  * localStorage demo so the app still runs offline.
  * ------------------------------------------------------------------------- */

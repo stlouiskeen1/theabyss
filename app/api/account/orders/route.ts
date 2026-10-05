@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { createClient } from "@/lib/supabase/server";
 import { listOrdersBySub } from "@/lib/orders.server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await auth0.getSession();
-  const sub = session?.user?.sub;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const sub = user?.id;
   if (!sub) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

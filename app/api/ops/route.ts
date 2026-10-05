@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { createClient } from "@/lib/supabase/server";
 import {
   advanceOrder,
   cancelOrder,
@@ -13,9 +13,10 @@ export const dynamic = "force-dynamic";
 type AdminGuard = { ok: true } | { ok: false; status: number };
 
 async function requireAdmin(): Promise<AdminGuard> {
-  const session = await auth0.getSession();
-  if (!session) return { ok: false, status: 401 };
-  if (!isAdmin(session)) return { ok: false, status: 403 };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, status: 401 };
+  if (!isAdmin(user)) return { ok: false, status: 403 };
   return { ok: true };
 }
 

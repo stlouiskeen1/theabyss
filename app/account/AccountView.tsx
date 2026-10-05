@@ -45,7 +45,7 @@ export default function AccountView() {
   const [ordersReady, setOrdersReady] = useState(false);
   const [ordersError, setOrdersError] = useState(false);
 
-  // Order history comes from the Auth0-gated /api/account/orders route, which
+  // Order history comes from the session-gated /api/account/orders route, which
   // returns only the rows stamped with this session's sub.
   const loadOrders = useCallback(async () => {
     if (!user?.id) return;
@@ -69,8 +69,7 @@ export default function AccountView() {
     return () => clearTimeout(timer);
   }, [loadOrders]);
 
-  // The session is fetched from `/auth/profile` right after mount (see
-  // lib/auth). Once it settles, send logged-out visitors to the sign-in page.
+  // The session comes from Supabase auth (see lib/auth). Once it settles, send logged-out visitors to the sign-in page.
   useEffect(() => {
     if (!loading && user === null) {
       router.replace("/account/login");
