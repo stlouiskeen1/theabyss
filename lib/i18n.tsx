@@ -467,6 +467,8 @@ const en = {
   "auth.errPasswordMin": "Password must be at least 8 characters.",
   "auth.errConfirmMismatch": "Passwords do not match.",
   "auth.errInvalidCredentials": "Incorrect email or password.",
+  "auth.errGoogleDisabled":
+    "Google sign-in is not enabled in Supabase yet. Enable it under Authentication → Providers → Google.",
   "auth.est": "EST. 2025",
   "auth.clientPrivilege": "ABYSS CLIENT PRIVILEGE",
   "auth.panelCity": "PARIS // ALGIERS",
@@ -483,11 +485,11 @@ const en = {
   "auth.fullName": "Full Name",
   "auth.fullNamePlaceholder": "e.g. Alex Morgan",
   "auth.emailLabel": "Email Address",
-  "auth.orEmail": "or continue with email",
-  "auth.continueAuth0": "Continue with Auth0",
-  "auth.continueAuth0Signup": "Sign up with Auth0",
+  "auth.orEmail": "or continue with Google",
+  "auth.continueGoogle": "Continue with Google",
+  "auth.continueGoogleSignup": "Sign up with Google",
   "auth.hostedNote":
-    "You'll be redirected to Auth0's secure sign-in page to complete authentication.",
+    "You'll be redirected to the secure sign-in page to complete authentication.",
   "auth.errUnexpected": "Something went wrong starting sign-in. Please try again.",
   "auth.forgot": "Forgot password?",
   "auth.showPassword": "Show password",
@@ -586,7 +588,7 @@ const en = {
   "ops.signIn": "Sign in",
   "ops.deskError": "The desk can’t reach the order feed.",
   "ops.notLoggedIn": "Sign in — the desk requires an admin session.",
-  "ops.notAdmin": "This account isn’t on the admin list. Ask the store owner to add you to AUTH0_ADMIN_EMAILS.",
+  "ops.notAdmin": "This account isn’t on the admin list. Ask the store owner to add you to ADMIN_EMAILS.",
   "ops.adminsOnly": "Concierge-level access — authenticated admins only.",
 
   "search.title": "Search",
@@ -1128,6 +1130,8 @@ const fr: Record<keyof typeof en, string> = {
   "auth.errPasswordMin": "Le mot de passe doit comporter au moins 8 caractères.",
   "auth.errConfirmMismatch": "Les mots de passe ne correspondent pas.",
   "auth.errInvalidCredentials": "E-mail ou mot de passe incorrect.",
+  "auth.errGoogleDisabled":
+    "La connexion Google n'est pas encore activée dans Supabase. Activez-la sous Authentication → Providers → Google.",
   "auth.est": "EST. 2025",
   "auth.clientPrivilege": "PRIVILÈGE CLIENT ABYSS",
   "auth.panelCity": "PARIS // ALGER",
@@ -1144,11 +1148,11 @@ const fr: Record<keyof typeof en, string> = {
   "auth.fullName": "Nom complet",
   "auth.fullNamePlaceholder": "ex. Alex Morgan",
   "auth.emailLabel": "Adresse e-mail",
-  "auth.orEmail": "ou continuer avec l'e-mail",
-  "auth.continueAuth0": "Continuer avec Auth0",
-  "auth.continueAuth0Signup": "S'inscrire avec Auth0",
+  "auth.orEmail": "ou continuer avec Google",
+  "auth.continueGoogle": "Continuer avec Google",
+  "auth.continueGoogleSignup": "S'inscrire avec Google",
   "auth.hostedNote":
-    "Vous serez redirigé vers la page de connexion sécurisée d'Auth0 pour vous authentifier.",
+    "Vous serez redirigé vers la page de connexion sécurisée pour vous authentifier.",
   "auth.errUnexpected":
     "Une erreur est survenue lors de la connexion. Veuillez réessayer.",
   "auth.forgot": "Mot de passe oublié ?",
@@ -1250,7 +1254,7 @@ const fr: Record<keyof typeof en, string> = {
   "ops.signIn": "Se connecter",
   "ops.deskError": "Le desk ne peut pas joindre le flux de commandes.",
   "ops.notLoggedIn": "Connectez-vous — le desk requiert une session admin.",
-  "ops.notAdmin": "Ce compte n’est pas sur la liste admin. Demandez au propriétaire de vous ajouter à AUTH0_ADMIN_EMAILS.",
+  "ops.notAdmin": "Ce compte n’est pas sur la liste admin. Demandez au propriétaire de vous ajouter à ADMIN_EMAILS.",
   "ops.adminsOnly": "Accès conciergerie — administrateurs authentifiés uniquement.",
 
   "search.title": "Recherche",
