@@ -111,7 +111,7 @@ begin
     raise exception 'vendor_orders_list: forbidden';
   end if;
   return (
-    select coalesce(array_agg(row_to_json order by created_at desc), '{}')
+    select coalesce(array_agg(to_jsonb(t) order by t.created_at desc), '{}')
     from (
       select
         vo.id, vo.status, vo.subtotal, vo.commission_amount,

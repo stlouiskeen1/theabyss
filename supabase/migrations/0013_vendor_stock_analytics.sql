@@ -47,7 +47,7 @@ begin
     raise exception 'vendor_products_list: forbidden';
   end if;
   return (
-    select coalesce(array_agg(row_to_json order by created_at desc), '{}')
+    select coalesce(array_agg(to_jsonb(t) order by t.created_at desc), '{}')
     from (
       select
         p.id, p.name, p.slug, p.description, p.brand,
