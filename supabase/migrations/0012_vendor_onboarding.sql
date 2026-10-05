@@ -149,7 +149,7 @@ begin
   return (
     select coalesce(array_agg(to_jsonb(p) order by p.created_at desc), '{}')
     from (
-      select id, amount, status, period_start, period_end, paid_at
+      select id, amount, status, period_start, period_end, paid_at, created_at
       from public.vendor_payouts
       where vendor_id = p_vendor_id
       order by created_at desc

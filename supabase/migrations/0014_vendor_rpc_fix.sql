@@ -5,6 +5,8 @@
 -- `array_agg(row_to_json order by ...)` — a bare column reference, not a
 -- function call — so every call failed with
 -- `column "row_to_json" does not exist`. Fixed to `to_jsonb(t)`.
+-- vendor_payouts_list ordered by p.created_at, a column its subquery did not
+-- select — created_at is now included in the inner select.
 -- =============================================================================
 
 create or replace function public.vendor_products_list(p_owner uuid, p_vendor_id uuid)
@@ -38,6 +40,29 @@ begin
       where p.vendor_id = p_vendor_id
       order by p.created_at desc
     ) t
+  );
+end;
+$$;
+
+create or replace function public.vendor_payouts_list(p_owner uuid, p_vendor_id uuid)
+returns jsonb[]
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.vendors where id = p_vendor_id and owner_id = p_owner) then
+    raise exception 'vendor_payouts_list: forbidden';
+  end if;
+  return (
+    select coalesce(array_agg(to_jsonb(p) order by p.created_at desc), '{}')
+    from (
+      select id, amount, status, period_start, period_end, paid_at, created_at
+      from public.vendor_payouts
+      where vendor_id = p_vendor_id
+      order by created_at desc
+      limit 200
+    ) p
   );
 end;
 $$;
