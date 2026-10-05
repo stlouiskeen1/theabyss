@@ -263,10 +263,7 @@ export default function DashboardView() {
 
             {active && (
               <>
-                <div className="flex items-center justify-between gap-unit-md flex-wrap">
-                  <p className="font-mono-technical text-mono-technical text-text-muted">
-                    /seller/{active.slug}
-                  </p>
+                <div className="flex items-center justify-end gap-unit-md flex-wrap">
                   <span
                     className={`font-label-caps-sm text-label-caps-sm uppercase px-unit-sm py-unit-2xs rounded ${
                       active.status === "active"
