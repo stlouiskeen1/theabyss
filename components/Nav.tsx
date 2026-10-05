@@ -567,16 +567,27 @@ export default function Nav() {
                 })}
               </div>
               <div className="mt-8 flex flex-col gap-3 text-sm font-medium uppercase tracking-wide text-text-muted">
-                {UTILITY_LABELS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={showNotice}
-                    className="press focus-kill self-start text-text-muted transition-colors hover:text-primary"
-                  >
-                    {t(`utility.${k}` as "utility.help")}
-                  </button>
-                ))}
+                {UTILITY_LABELS.map((k) =>
+                  k === "seller" ? (
+                    <Link
+                      key={k}
+                      href="/seller/apply"
+                      onClick={() => setMenuOpen(false)}
+                      className="press focus-kill self-start text-text-muted transition-colors hover:text-primary"
+                    >
+                      {t(`utility.${k}` as "utility.help")}
+                    </Link>
+                  ) : (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={showNotice}
+                      className="press focus-kill self-start text-text-muted transition-colors hover:text-primary"
+                    >
+                      {t(`utility.${k}` as "utility.help")}
+                    </button>
+                  )
+                )}
                 <Link
                   href={user ? "/account" : "/account/login"}
                   onClick={() => setMenuOpen(false)}
