@@ -5,8 +5,8 @@
 -- `array_agg(row_to_json order by ...)` — a bare column reference, not a
 -- function call — so every call failed with
 -- `column "row_to_json" does not exist`. Fixed to `to_jsonb(t)`.
--- vendor_payouts_list ordered by p.created_at, a column its subquery did not
--- select — created_at is now included in the inner select.
+-- vendor_payouts_list ordered by p.created_at, but vendor_payouts has no
+-- created_at column — it now orders by paid_at instead.
 -- =============================================================================
 
 create or replace function public.vendor_products_list(p_owner uuid, p_vendor_id uuid)
@@ -55,12 +55,12 @@ begin
     raise exception 'vendor_payouts_list: forbidden';
   end if;
   return (
-    select coalesce(array_agg(to_jsonb(p) order by p.created_at desc), '{}')
+    select coalesce(array_agg(to_jsonb(p) order by p.paid_at desc nulls last, p.id), '{}')
     from (
-      select id, amount, status, period_start, period_end, paid_at, created_at
+      select id, amount, status, period_start, period_end, paid_at
       from public.vendor_payouts
       where vendor_id = p_vendor_id
-      order by created_at desc
+      order by paid_at desc nulls last, id
       limit 200
     ) p
   );

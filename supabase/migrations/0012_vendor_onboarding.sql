@@ -147,12 +147,12 @@ begin
     raise exception 'vendor_payouts_list: forbidden';
   end if;
   return (
-    select coalesce(array_agg(to_jsonb(p) order by p.created_at desc), '{}')
+    select coalesce(array_agg(to_jsonb(p) order by p.paid_at desc nulls last, p.id), '{}')
     from (
-      select id, amount, status, period_start, period_end, paid_at, created_at
+      select id, amount, status, period_start, period_end, paid_at
       from public.vendor_payouts
       where vendor_id = p_vendor_id
-      order by created_at desc
+      order by paid_at desc nulls last, id
       limit 200
     ) p
   );
