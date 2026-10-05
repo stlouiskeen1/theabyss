@@ -650,6 +650,10 @@ const en = {
   "seller.desk.status.pending": "Pending review",
   "seller.desk.status.active": "Active",
   "seller.desk.status.suspended": "Suspended",
+  "seller.desk.tab.analytics": "Analytics",
+  "seller.desk.tab.products": "Stock",
+  "seller.desk.tab.orders": "Orders",
+  "seller.desk.tab.payouts": "Payouts",
 
   "footer.shop": "Shop",
   "footer.help": "Help",
@@ -1345,6 +1349,10 @@ const fr: Record<keyof typeof en, string> = {
   "seller.desk.status.pending": "En examen",
   "seller.desk.status.active": "Active",
   "seller.desk.status.suspended": "Suspendue",
+  "seller.desk.tab.analytics": "Analyses",
+  "seller.desk.tab.products": "Stock",
+  "seller.desk.tab.orders": "Commandes",
+  "seller.desk.tab.payouts": "Paiements",
 
   "notFound.code": "404",
   "notFound.title": "Perdu dans le vide",
