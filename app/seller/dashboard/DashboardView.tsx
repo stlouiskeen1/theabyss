@@ -74,6 +74,16 @@ type Analytics = {
 
 type Tab = "analytics" | "products" | "orders" | "payouts";
 
+/** Parse an API response as JSON, even when the server answers HTML. */
+async function readJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`API error (${res.status}): ${text.slice(0, 140) || res.statusText}`);
+  }
+}
+
 function slugify(v: string) {
   return v
     .toLowerCase()
@@ -119,7 +129,7 @@ export default function DashboardView() {
     setPayouts(null);
     try {
       const res = await fetch(`/api/seller/vendor?vendorId=${vendorId}`, { cache: "no-store" });
-      const data = (await res.json()) as { orders?: VendorOrder[]; payouts?: Payout[]; error?: string };
+      const data = (await readJson(res)) as { orders?: VendorOrder[]; payouts?: Payout[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       setOrders(data.orders ?? []);
       setPayouts(data.payouts ?? []);
@@ -132,7 +142,7 @@ export default function DashboardView() {
     setProducts(null);
     try {
       const res = await fetch(`/api/seller/products?vendorId=${vendorId}`, { cache: "no-store" });
-      const data = (await res.json()) as { products?: Product[]; error?: string };
+      const data = (await readJson(res)) as { products?: Product[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       setProducts(data.products ?? []);
     } catch (e) {
@@ -146,7 +156,7 @@ export default function DashboardView() {
       const res = await fetch(`/api/seller/analytics?vendorId=${vendorId}&days=${d}`, {
         cache: "no-store",
       });
-      const data = (await res.json()) as { analytics?: Analytics; error?: string };
+      const data = (await readJson(res)) as { analytics?: Analytics; error?: string };
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       if (data.analytics) setAnalytics(data.analytics);
     } catch (e) {
@@ -159,7 +169,7 @@ export default function DashboardView() {
     (async () => {
       try {
         const res = await fetch("/api/seller/overview", { cache: "no-store" });
-        const data = (await res.json()) as { vendors?: Vendor[]; error?: string };
+        const data = (await readJson(res)) as { vendors?: Vendor[]; error?: string };
         if (!res.ok) throw new Error(data.error ?? String(res.status));
         const list = data.vendors ?? [];
         setVendors(list);
@@ -330,7 +340,7 @@ export default function DashboardView() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ ...payload, vendorId: activeId }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         setShowNew(false);
                         setEditing(null);
@@ -351,7 +361,7 @@ export default function DashboardView() {
                             productId: p.id,
                           }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
                       } catch (e) {
@@ -374,7 +384,7 @@ export default function DashboardView() {
                             status: p.status === "active" ? "draft" : "active",
                           }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
                       } catch (e) {
@@ -388,7 +398,7 @@ export default function DashboardView() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ action: "setStock", variantId, stock }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
                       } catch (e) {
@@ -402,7 +412,7 @@ export default function DashboardView() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ action: "upsert", productId, ...v }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
                       } catch (e) {
@@ -416,7 +426,7 @@ export default function DashboardView() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ action: "delete", variantId }),
                         });
-                        const data = (await res.json()) as { error?: string };
+                        const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
                       } catch (e) {

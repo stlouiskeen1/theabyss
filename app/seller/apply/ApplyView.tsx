@@ -66,9 +66,14 @@ export default function ApplyView() {
           wilayaId: wilaya ? Number(wilaya) : null,
         }),
       });
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
+      const text = await res.text();
+      let data: { error?: string } | null = null;
+      try {
+        data = JSON.parse(text) as { error?: string };
+      } catch {
+        setError(`API error (${res.status}): ${text.slice(0, 140) || res.statusText}`);
+        return;
+      }
       if (!res.ok) {
         setError(
           data?.error === "slug_taken"
@@ -79,8 +84,8 @@ export default function ApplyView() {
       }
       router.push("/seller/dashboard");
       router.refresh();
-    } catch {
-      setError(t("seller.apply.errUnexpected"));
+    } catch (e) {
+      setError((e as Error).message || t("seller.apply.errUnexpected"));
     } finally {
       setBusy(false);
     }
