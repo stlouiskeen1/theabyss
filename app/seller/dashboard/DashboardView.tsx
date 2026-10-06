@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { formatPrice } from "@/lib/mock";
 import { Spinner } from "@/components/ui";
 
@@ -339,6 +340,8 @@ export default function DashboardView() {
                         });
                         const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
+                        clearDraft("seller-product:new");
+                        if (editing) clearDraft(`seller-product:${editing.id}`);
                         setShowNew(false);
                         setEditing(null);
                         refreshProducts();
@@ -565,23 +568,43 @@ function ProductForm({
   initial,
   busy,
   error,
+  draftKey,
   onSubmit,
   onCancel,
 }: {
   initial: Product | null;
   busy: boolean;
   error: string | null;
+  draftKey: string;
   onSubmit: (payload: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [touched, setTouched] = useState(!!initial);
-  const [price, setPrice] = useState(String(initial?.base_price ?? ""));
-  const [brand, setBrand] = useState(initial?.brand ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.images?.[0]?.url ?? "");
-  const [status, setStatus] = useState(initial?.status ?? "draft");
+  // Restore in-progress edits after any reload (see lib/draft).
+  const [restored] = useState(() =>
+    loadDraft<{
+      name: string;
+      slug: string;
+      touched: boolean;
+      price: string;
+      brand: string;
+      description: string;
+      imageUrl: string;
+      status: string;
+    }>(draftKey)
+  );
+  const [name, setName] = useState(restored?.name ?? initial?.name ?? "");
+  const [slug, setSlug] = useState(restored?.slug ?? initial?.slug ?? "");
+  const [touched, setTouched] = useState(restored?.touched ?? !!initial);
+  const [price, setPrice] = useState(restored?.price ?? String(initial?.base_price ?? ""));
+  const [brand, setBrand] = useState(restored?.brand ?? initial?.brand ?? "");
+  const [description, setDescription] = useState(restored?.description ?? initial?.description ?? "");
+  const [imageUrl, setImageUrl] = useState(restored?.imageUrl ?? initial?.images?.[0]?.url ?? "");
+  const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
+
+  // Autosave the draft on every keystroke; cleared on successful submit.
+  useEffect(() => {
+    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status });
+  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status]);
 
   return (
     <form
@@ -900,15 +923,18 @@ function ProductsTab(props: {
           initial={null}
           busy={props.formBusy}
           error={props.formError}
+          draftKey="seller-product:new"
           onSubmit={props.onSubmit}
           onCancel={props.onCloseForm}
         />
       )}
       {props.editing && (
         <ProductForm
+          key={props.editing.id}
           initial={props.editing}
           busy={props.formBusy}
           error={props.formError}
+          draftKey={`seller-product:${props.editing.id}`}
           onSubmit={props.onSubmit}
           onCancel={props.onCloseForm}
         />
