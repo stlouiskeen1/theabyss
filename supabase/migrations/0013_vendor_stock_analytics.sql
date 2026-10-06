@@ -135,7 +135,7 @@ begin
 
   if p_product_id is null then
     insert into public.products (vendor_id, name, slug, description, brand, base_price, status)
-    values (p_vendor_id, v_name, v_slug, v_desc, v_brand, p_base_price, coalesce(p_status, 'draft'))
+    values (p_vendor_id, v_name, v_slug, v_desc, v_brand, p_base_price, coalesce(p_status, 'draft')::public.product_status)
     returning id into v_id;
     -- First variant so the product is orderable + stock-tracked from day one.
     insert into public.product_variants (product_id, size, sku, stock_quantity)
@@ -144,7 +144,7 @@ begin
     update public.products
     set name = v_name, slug = v_slug, description = v_desc, brand = v_brand,
         base_price = p_base_price,
-        status = coalesce(p_status, status)
+        status = coalesce(p_status::public.product_status, status)
     where id = p_product_id;
     v_id := p_product_id;
   end if;
