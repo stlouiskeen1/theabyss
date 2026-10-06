@@ -16,6 +16,20 @@ export type CartLine = {
   productId: string;
   size: string;
   qty: number;
+  /** Live-catalog snapshot: real variant SKU + display data for live products. */
+  sku?: string;
+  price?: number;
+  name?: string;
+  image?: string;
+  sellerName?: string;
+};
+
+export type CartSnapshot = {
+  sku?: string;
+  price?: number;
+  name?: string;
+  image?: string;
+  sellerName?: string;
 };
 
 type CartContextValue = {
@@ -23,7 +37,7 @@ type CartContextValue = {
   openCart: () => void;
   closeCart: () => void;
   items: CartLine[];
-  add: (productId: string, size: string, qty?: number) => void;
+  add: (productId: string, size: string, qty?: number, snap?: CartSnapshot) => void;
   setQty: (productId: string, size: string, qty: number) => void;
   remove: (productId: string, size: string) => void;
   clear: () => void;
@@ -54,14 +68,25 @@ function readStored(): CartLine[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (l) =>
-        l &&
-        typeof l.productId === "string" &&
-        typeof l.size === "string" &&
-        typeof l.qty === "number" &&
-        l.qty > 0
-    );
+    return parsed
+      .filter(
+        (l) =>
+          l &&
+          typeof l.productId === "string" &&
+          typeof l.size === "string" &&
+          typeof l.qty === "number" &&
+          l.qty > 0
+      )
+      .map((l) => ({
+        productId: l.productId,
+        size: l.size,
+        qty: Math.min(9, Math.floor(l.qty)),
+        ...(typeof l.sku === "string" ? { sku: l.sku } : null),
+        ...(typeof l.price === "number" ? { price: l.price } : null),
+        ...(typeof l.name === "string" ? { name: l.name } : null),
+        ...(typeof l.image === "string" ? { image: l.image } : null),
+        ...(typeof l.sellerName === "string" ? { sellerName: l.sellerName } : null),
+      }));
   } catch {
     return [];
   }
@@ -108,23 +133,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const openCart = useCallback(() => setOpen(true), []);
   const closeCart = useCallback(() => setOpen(false), []);
 
-  const add = useCallback((productId: string, size: string, qty = 1) => {
-    const existing = storedItems.find(
-      (l) => l.productId === productId && l.size === size
-    );
-    if (existing) {
-      writeCart(
-        storedItems.map((l) =>
-          l.productId === productId && l.size === size
-            ? { ...l, qty: Math.min(9, l.qty + qty) }
-            : l
-        )
+  const add = useCallback(
+    (productId: string, size: string, qty = 1, snap?: CartSnapshot) => {
+      const existing = storedItems.find(
+        (l) => l.productId === productId && l.size === size
       );
-    } else {
-      writeCart([...storedItems, { productId, size, qty: Math.min(9, qty) }]);
-    }
-    setOpen(true);
-  }, []);
+      if (existing) {
+        writeCart(
+          storedItems.map((l) =>
+            l.productId === productId && l.size === size
+              ? { ...l, ...snap, qty: Math.min(9, l.qty + qty) }
+              : l
+          )
+        );
+      } else {
+        writeCart([
+          ...storedItems,
+          { productId, size, qty: Math.min(9, qty), ...snap },
+        ]);
+      }
+      setOpen(true);
+    },
+    []
+  );
 
   const setQty = useCallback(
     (productId: string, size: string, qty: number) => {
@@ -159,6 +190,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const subtotal = useMemo(
     () =>
       items.reduce((acc, l) => {
+        if (typeof l.price === "number") return acc + l.price * l.qty;
         const p = getProduct(l.productId);
         return acc + (p ? p.price * l.qty : 0);
       }, 0),
@@ -188,4 +220,34 @@ export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
+}
+
+/** Display data for a cart line: mock lookup first, live snapshot fallback. */
+export function lineDisplay(line: CartLine): {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  sellerName: string;
+} | null {
+  const p = getProduct(line.productId);
+  if (p) {
+    return {
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      image: p.imageUrls[0],
+      sellerName: p.sellerName,
+    };
+  }
+  if (typeof line.name === "string" && typeof line.price === "number") {
+    return {
+      id: line.productId,
+      name: line.name,
+      price: line.price,
+      image: line.image ?? "",
+      sellerName: line.sellerName ?? "",
+    };
+  }
+  return null;
 }

@@ -66,11 +66,35 @@ const rateKeyFor = (code: string) =>
       ? ("pdp.rateSouth" as const)
       : ("pdp.rate48" as const);
 
-export default function ProductDetailView({ product }: { product: Product }) {
+export type LivePdp = {
+  variants: {
+    size?: string | null;
+    color?: string | null;
+    sku?: string | null;
+    price_override?: number | string | null;
+    stock_quantity: number;
+  }[];
+} | null;
+
+export default function ProductDetailView({
+  product,
+  live,
+}: {
+  product: Product;
+  live?: LivePdp;
+}) {
   const { t, lang } = useLang();
   const { add } = useCart();
   const { has, toggle: toggleWish } = useWishlist();
   const seller = getSeller(product.sellerId);
+
+  /** Live variant matching a size label (mapped sizes mirror variant sizes). */
+  const liveVariantFor = (s: string) =>
+    live?.variants.find((v) => (v.size || "OS") === s) ?? null;
+  const stockFor = (s: string, i: number) => {
+    if (!live) return stockOf(i, product.sizes.length);
+    return liveVariantFor(s)?.stock_quantity ?? 0;
+  };
   const atelier = seller ? (SELLER_ATELIER[seller.id] ?? "99-XXX") : "99-XXX";
   const code = atelier.split("-")[0];
 
@@ -114,7 +138,10 @@ export default function ProductDetailView({ product }: { product: Product }) {
       : 0;
 
   const selectedIndex = size ? product.sizes.indexOf(size) : -1;
-  const selectedStock = selectedIndex >= 0 ? stockOf(selectedIndex, product.sizes.length) : 0;
+  const selectedStock =
+    selectedIndex >= 0 && size
+      ? stockFor(size, selectedIndex)
+      : 0;
   const defaultIdx = Math.floor(product.sizes.length / 2);
   const recommendedSize = product.sizes[defaultIdx] ?? product.sizes[0];
 
@@ -146,7 +173,28 @@ export default function ProductDetailView({ product }: { product: Product }) {
       setHint(true);
       return;
     }
-    add(product.id, size, 1);
+    const lv = live ? liveVariantFor(size) : null;
+    if (live && (!lv || !lv.sku || (lv.stock_quantity ?? 0) <= 0)) {
+      setHint(true);
+      return;
+    }
+    add(
+      product.id,
+      size,
+      1,
+      lv?.sku
+        ? {
+            sku: lv.sku,
+            price:
+              lv.price_override === null || lv.price_override === undefined
+                ? product.price
+                : Number(lv.price_override),
+            name: product.name,
+            image: product.imageUrls[0],
+            sellerName: product.sellerName,
+          }
+        : undefined
+    );
     setAdded(true);
     if (addTimer.current) clearTimeout(addTimer.current);
     addTimer.current = setTimeout(() => setAdded(false), 2500);
@@ -534,7 +582,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
                   }}
                 >
                   {product.sizes.map((s, i) => {
-                    const stock = stockOf(i, product.sizes.length);
+                    const stock = stockFor(s, i);
                     const active = size === s;
                     const soldOut = stock === 0;
                     return (

@@ -38,10 +38,13 @@ export default function CategoryView({
   slug,
   g,
   sub,
+  products,
 }: {
   slug: string;
   g?: string;
   sub?: string;
+  /** Live-catalog override (mapped to mock shape); mock fallback when omitted. */
+  products?: import("@/lib/mock").Product[];
 }) {
   const { t } = useLang();
   const router = useRouter();
@@ -93,9 +96,10 @@ export default function CategoryView({
   }, [slug, t]);
 
   const base = useMemo(() => {
+    if (products) return products;
     if (slug === "all") return PRODUCTS;
     return getProductsByCategory(CAT_SLUG_TO_LABEL[slug as CategorySlug]);
-  }, [slug]);
+  }, [slug, products]);
 
   const items = useMemo(() => {
     const b = PRICE_BANDS[band];

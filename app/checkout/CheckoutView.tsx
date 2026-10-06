@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { buildOrderItems, useOrders } from "@/lib/orders";
 import { useLang } from "@/lib/i18n";
-import { formatPrice, getProduct } from "@/lib/mock";
+import { formatPrice } from "@/lib/mock";
+import { lineDisplay } from "@/lib/cart";
 import {
   WILAYAS_ALPHABETICAL,
   deliveryFeeFor,
@@ -440,7 +441,7 @@ export default function CheckoutView() {
                   </div>
                   <ul className="flex flex-col gap-unit-xs">
                     {items.map((line) => {
-                      const product = getProduct(line.productId);
+                      const product = lineDisplay(line);
                       if (!product) return null;
                       return (
                         <li
@@ -448,12 +449,13 @@ export default function CheckoutView() {
                           className="flex items-center gap-unit-sm bg-surface-container-low p-unit-sm"
                         >
                           <span className="block h-14 w-14 flex-shrink-0 overflow-hidden bg-surface-container">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={product.imageUrls[0]}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
+                            {product.image ? (
+                              <img
+                                src={product.image}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : null}
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-label-caps-sm text-label-caps-sm uppercase text-primary font-bold">
