@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
@@ -630,6 +630,7 @@ function ProductForm({
   busy,
   error,
   draftKey,
+  vendorId,
   onSubmit,
   onCancel,
 }: {
@@ -637,6 +638,7 @@ function ProductForm({
   busy: boolean;
   error: string | null;
   draftKey: string;
+  vendorId: string;
   onSubmit: (payload: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
@@ -664,6 +666,27 @@ function ProductForm({
   const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(restored?.categoryId ?? initial?.category_id ?? "");
   const [categories, setCategories] = useState<Category[] | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("vendorId", vendorId);
+      const res = await fetch("/api/seller/upload", { method: "POST", body: form });
+      const data = (await readJson(res)) as { url?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? String(res.status));
+      if (!data.url) throw new Error("Upload failed");
+      setImageUrl(data.url);
+    } catch (e) {
+      setUploadError((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     let live = true;
@@ -756,16 +779,34 @@ function ProductForm({
         />
       </label>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-sm">
-        <label className="flex flex-col gap-unit-2xs">
-          <span className={labelCls}>Image URL</span>
+        <div className="flex flex-col gap-unit-2xs">
+          <span className={labelCls}>Photo</span>
           <div className="flex gap-unit-2xs items-center">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageUrl} alt="" className="h-11 w-11 rounded object-cover bg-surface-container-low shrink-0" />
             ) : null}
-            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputCls} placeholder="https://…" />
+            <label className="h-11 px-unit-md inline-flex items-center bg-surface-container-low text-primary font-label-caps text-label-caps uppercase rounded cursor-pointer whitespace-nowrap disabled:opacity-60">
+              {uploading ? <Spinner /> : <span>Upload</span>}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadFile(f);
+                }}
+              />
+            </label>
+            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputCls} placeholder="…or paste URL" aria-label="Image URL" />
           </div>
-        </label>
+          {uploadError && (
+            <span className="font-mono-technical text-[11px] text-accent-crimson">{uploadError}</span>
+          )}
+          <span className="font-mono-technical text-[11px] text-text-muted">JPEG/PNG/WebP, max 5 MB.</span>
+        </div>
         <label className="flex flex-col gap-unit-2xs">
           <span className={labelCls}>Status</span>
           <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
@@ -834,6 +875,43 @@ function VariantRow({
 }) {
   const [stock, setStock] = useState(String(variant.stock_quantity));
   const [open, setOpen] = useState(false);
+  // Debounced server sync: taps feel instant, one request per pause.
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<number | null>(null);
+  const commitRef = useRef(onStock);
+  useEffect(() => {
+    commitRef.current = onStock;
+  });
+
+  // Follow server state (e.g. after a rejected save reloads the list).
+  useEffect(() => {
+    if (pending.current === null) setStock(String(variant.stock_quantity));
+  }, [variant.stock_quantity]);
+
+  // Flush any unsent value on unmount so no tap is ever lost.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (pending.current !== null) commitRef.current(variant.id, pending.current);
+    },
+    [variant.id]
+  );
+
+  const commit = (n: number, immediate: boolean) => {
+    const next = Math.max(0, Math.floor(Number(n)) || 0);
+    setStock(String(next));
+    pending.current = next;
+    if (timer.current) clearTimeout(timer.current);
+    if (immediate) {
+      pending.current = null;
+      onStock(variant.id, next);
+    } else {
+      timer.current = setTimeout(() => {
+        pending.current = null;
+        onStock(variant.id, next);
+      }, 600);
+    }
+  };
   const [size, setSize] = useState(variant.size ?? "");
   const [color, setColor] = useState(variant.color ?? "");
   const [price, setPrice] = useState(
@@ -859,7 +937,7 @@ function VariantRow({
         <div className="ml-auto flex items-center gap-unit-2xs">
           <button
             type="button"
-            onClick={() => onStock(variant.id, Math.max(0, variant.stock_quantity - 1))}
+            onClick={() => commit(Number(stock) - 1, false)}
             className="w-8 h-8 rounded bg-surface-container-low font-bold text-primary"
             aria-label="Decrease stock"
           >
@@ -870,8 +948,12 @@ function VariantRow({
             onChange={(e) => setStock(e.target.value)}
             onBlur={() => {
               const n = Math.floor(Number(stock));
-              if (Number.isInteger(n) && n >= 0 && n !== variant.stock_quantity) onStock(variant.id, n);
-              else setStock(String(variant.stock_quantity));
+              if (Number.isInteger(n) && n >= 0) commit(n, true);
+              else {
+                pending.current = null;
+                if (timer.current) clearTimeout(timer.current);
+                setStock(String(variant.stock_quantity));
+              }
             }}
             className="w-16 h-8 text-center bg-surface-container-low rounded font-mono-technical text-mono-technical text-primary"
             inputMode="numeric"
@@ -879,7 +961,7 @@ function VariantRow({
           />
           <button
             type="button"
-            onClick={() => onStock(variant.id, variant.stock_quantity + 1)}
+            onClick={() => commit(Number(stock) + 1, false)}
             className="w-8 h-8 rounded bg-surface-container-low font-bold text-primary"
             aria-label="Increase stock"
           >
@@ -981,7 +1063,7 @@ function ProductsTab(props: {
   showNew: boolean;
   formBusy: boolean;
   formError: string | null;
-  activeVendorId: string;
+  activeVendorId: string | null;
   onNew: () => void;
   onEdit: (p: Product) => void;
   onCloseForm: () => void;
@@ -1018,23 +1100,25 @@ function ProductsTab(props: {
         </button>
       </div>
 
-      {props.showNew && (
+      {props.showNew && props.activeVendorId && (
         <ProductForm
           initial={null}
           busy={props.formBusy}
           error={props.formError}
           draftKey="seller-product:new"
+          vendorId={props.activeVendorId}
           onSubmit={props.onSubmit}
           onCancel={props.onCloseForm}
         />
       )}
-      {props.editing && (
+      {props.editing && props.activeVendorId && (
         <ProductForm
           key={props.editing.id}
           initial={props.editing}
           busy={props.formBusy}
           error={props.formError}
           draftKey={`seller-product:${props.editing.id}`}
+          vendorId={props.activeVendorId}
           onSubmit={props.onSubmit}
           onCancel={props.onCloseForm}
         />
