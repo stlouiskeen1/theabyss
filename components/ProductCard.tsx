@@ -15,6 +15,9 @@ export default function ProductCard({ product }: { product: Product }) {
   const { has, toggle } = useWishlist();
   const [colorway, setColorway] = useState(0);
   const seller = getSeller(product.sellerId);
+  // Live products need a real variant SKU, which is only known on the PDP —
+  // so their card actions route there instead of quick-adding blindly.
+  const isLive = product.id.startsWith("live:");
   const onSale = typeof product.originalPrice === "number";
   const pct = onSale
     ? Math.round(
@@ -62,23 +65,32 @@ export default function ProductCard({ product }: { product: Product }) {
           className="absolute right-unit-xs top-unit-xs border-border-rule bg-surface-paper"
         />
 
-        {/* Quick size select on hover */}
+        {/* Quick size select on hover (mock only; live goes via PDP) */}
         <div className="absolute inset-x-0 bottom-0 hidden items-center justify-between border-t border-border-dark bg-surface-paper/95 p-unit-xs transition-transform duration-200 group-hover:translate-y-0 translate-y-full sm:flex">
           <span className="font-label-caps-sm text-label-caps-sm uppercase text-text-muted">
             {t("card.quickSelect")}
           </span>
-          <div className="flex gap-1">
-            {product.sizes.slice(0, 6).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => add(product.id, s, 1)}
-                className="press focus-kill h-6 w-6 border border-border-rule font-mono-technical text-label-caps-sm text-primary transition-colors hover:border-primary"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          {isLive ? (
+            <Link
+              href={`/product/${product.id}`}
+              className="press focus-kill font-mono-technical text-label-caps-sm uppercase text-primary underline underline-offset-2"
+            >
+              {t("card.view")}
+            </Link>
+          ) : (
+            <div className="flex gap-1">
+              {product.sizes.slice(0, 6).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => add(product.id, s, 1)}
+                  className="press focus-kill h-6 w-6 border border-border-rule font-mono-technical text-label-caps-sm text-primary transition-colors hover:border-primary"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -137,13 +149,22 @@ export default function ProductCard({ product }: { product: Product }) {
               ) : null}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => add(product.id, product.sizes[0], 1)}
-            className="press focus-kill h-10 bg-primary px-unit-md font-label-caps text-label-caps uppercase text-on-primary transition-all hover:border hover:border-primary hover:bg-surface-paper hover:text-primary"
-          >
-            {t("card.add")}
-          </button>
+          {isLive ? (
+            <Link
+              href={`/product/${product.id}`}
+              className="press focus-kill inline-flex h-10 items-center bg-primary px-unit-md font-label-caps text-label-caps uppercase text-on-primary transition-all hover:border hover:border-primary hover:bg-surface-paper hover:text-primary"
+            >
+              {t("card.view")}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => add(product.id, product.sizes[0], 1)}
+              className="press focus-kill h-10 bg-primary px-unit-md font-label-caps text-label-caps uppercase text-on-primary transition-all hover:border hover:border-primary hover:bg-surface-paper hover:text-primary"
+            >
+              {t("card.add")}
+            </button>
+          )}
         </div>
       </div>
     </article>
