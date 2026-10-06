@@ -714,6 +714,7 @@ const en = {
   "common.off": "{n}% off",
   "common.back": "Back",
   "card.add": "Add",
+  "card.view": "View",
   "card.quickSelect": "Quick Select",
   "card.fixedRate": "Fixed Rate",
 } as const;
@@ -1420,6 +1421,7 @@ const fr: Record<keyof typeof en, string> = {
   "common.off": "-{n} %",
   "common.back": "Retour",
   "card.add": "Ajouter",
+  "card.view": "Voir",
   "card.quickSelect": "Sélection Rapide",
   "card.fixedRate": "Tarif Fixé",
 };

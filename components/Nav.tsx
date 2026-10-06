@@ -387,14 +387,11 @@ export default function Nav() {
 
             <button
               type="button"
-              aria-label={t("nav.bag")}
+              aria-label={`${t("nav.bag")} (${count})`}
               onClick={openCart}
               className="press focus-kill flex h-9 items-center gap-unit-xs border border-border-rule px-unit-sm text-primary transition-colors hover:bg-surface-canvas"
             >
               <BagIcon count={count} />
-              <span className="hidden font-mono-technical text-mono-technical font-bold sm:inline">
-                {count}
-              </span>
             </button>
 
             <Link

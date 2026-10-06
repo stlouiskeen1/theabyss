@@ -75,7 +75,11 @@ function readStored(): CartLine[] {
           typeof l.productId === "string" &&
           typeof l.size === "string" &&
           typeof l.qty === "number" &&
-          l.qty > 0
+          l.qty > 0 &&
+          // Drop orphaned live lines saved before snapshots existed.
+          (typeof l.productId !== "string" ||
+            !l.productId.startsWith("live:") ||
+            typeof l.price === "number")
       )
       .map((l) => ({
         productId: l.productId,
