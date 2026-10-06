@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
 import { WILAYAS_ALPHABETICAL } from "@/lib/wilayas";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { Spinner } from "@/components/ui";
 
 function slugify(v: string) {
@@ -23,13 +24,28 @@ export default function ApplyView() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [description, setDescription] = useState("");
-  const [wilaya, setWilaya] = useState("");
+  // Restore an in-progress application after any reload (see lib/draft).
+  const [restored] = useState(() =>
+    loadDraft<{
+      name: string;
+      slug: string;
+      slugTouched: boolean;
+      description: string;
+      wilaya: string;
+    }>("seller-apply")
+  );
+  const [name, setName] = useState(restored?.name ?? "");
+  const [slug, setSlug] = useState(restored?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(restored?.slugTouched ?? false);
+  const [description, setDescription] = useState(restored?.description ?? "");
+  const [wilaya, setWilaya] = useState(restored?.wilaya ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Autosave the draft on every keystroke; cleared on successful submit.
+  useEffect(() => {
+    saveDraft("seller-apply", { name, slug, slugTouched, description, wilaya });
+  }, [name, slug, slugTouched, description, wilaya]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/account/login?next=/seller/apply");
@@ -82,6 +98,7 @@ export default function ApplyView() {
         );
         return;
       }
+      clearDraft("seller-apply");
       router.push("/seller/dashboard");
       router.refresh();
     } catch (e) {
