@@ -149,14 +149,17 @@ export default function DashboardView() {
     }
   }, []);
 
-  const loadProducts = useCallback(async (vendorId: string) => {
-    setProducts(null);
+  // Silent reloads keep the current list on screen (no spinner flash);
+  // only the very first load shows the loader.
+  const loadProducts = useCallback(async (vendorId: string, silent = false) => {
+    if (!silent) setProducts(null);
     try {
       const res = await fetch(`/api/seller/products?vendorId=${vendorId}`, { cache: "no-store" });
       const data = (await readJson(res)) as { products?: Product[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       setProducts(data.products ?? []);
     } catch (e) {
+      if (!silent) setProducts([]);
       setError((e as Error).message);
     }
   }, []);
@@ -209,8 +212,8 @@ export default function DashboardView() {
     void loadAnalytics(id, days);
   };
 
-  const refreshProducts = () => {
-    if (activeId) void loadProducts(activeId);
+  const refreshProducts = (silent = true) => {
+    if (activeId) void loadProducts(activeId, silent);
   };
 
   return (
@@ -416,6 +419,23 @@ export default function DashboardView() {
                       }
                     }}
                     onStock={async (variantId, stock) => {
+                      // Optimistic: update the number instantly, confirm silently.
+                      setProducts((prev) =>
+                        (prev ?? []).map((p) => {
+                          if (!p.variants.some((v) => v.id === variantId)) return p;
+                          const variants = p.variants.map((v) =>
+                            v.id === variantId ? { ...v, stock_quantity: stock } : v
+                          );
+                          return {
+                            ...p,
+                            variants,
+                            stock_total: variants.reduce(
+                              (n, v) => n + Number(v.stock_quantity ?? 0),
+                              0
+                            ),
+                          };
+                        })
+                      );
                       try {
                         const res = await fetch("/api/seller/variants", {
                           method: "POST",
@@ -424,9 +444,10 @@ export default function DashboardView() {
                         });
                         const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
-                        refreshProducts();
+                        refreshProducts(true);
                       } catch (e) {
                         setError((e as Error).message);
+                        if (activeId) void loadProducts(activeId, false);
                       }
                     }}
                     onVariantUpsert={async (productId, v) => {
