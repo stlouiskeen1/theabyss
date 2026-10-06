@@ -32,9 +32,18 @@ const INDEX_CODES: Record<string, string> = {
   s4: "25-CST",
 };
 
-export default function HomeView() {
+export default function HomeView({
+  liveProducts,
+}: {
+  /** Live-catalog lead items (mapped to mock shape); grid falls back to mock. */
+  liveProducts?: import("@/lib/mock").Product[];
+}) {
   const { t } = useLang();
   const [subscribed, setSubscribed] = useState(false);
+  const gridItems =
+    liveProducts && liveProducts.length > 0
+      ? [...liveProducts, ...PRODUCTS]
+      : PRODUCTS;
 
   const featured = FEATURED_IDS.map(getProduct).filter(Boolean) as NonNullable<
     ReturnType<typeof getProduct>
@@ -428,7 +437,7 @@ export default function HomeView() {
               {t("home.viewAll")}
             </Link>
           </div>
-          <ProductGrid items={PRODUCTS} initial={12} step={8} cols={4} />
+          <ProductGrid items={gridItems} initial={12} step={8} cols={4} />
         </div>
       </section>
     </div>

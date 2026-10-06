@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useCart, type CartLine } from "@/lib/cart";
+import { lineDisplay, useCart, type CartLine } from "@/lib/cart";
 import { useLang } from "@/lib/i18n";
 import { formatPrice, getProduct, getSeller } from "@/lib/mock";
 import { deliveryFeeFor } from "@/lib/wilayas";
@@ -59,9 +59,10 @@ export default function CartView() {
   const groups = useMemo(() => {
     const map = new Map<string, CartLine[]>();
     for (const line of items) {
-      const product = getProduct(line.productId);
-      if (!product) continue;
-      const key = product.sellerId;
+      const display = lineDisplay(line);
+      if (!display) continue;
+      const mock = getProduct(line.productId);
+      const key = mock?.sellerId ?? `live:${display.sellerName}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(line);
     }
@@ -126,7 +127,7 @@ export default function CartView() {
                 <div className="flex flex-col gap-unit-lg">
                   {groups.map((group, gi) => {
                     const seller = getSeller(group.sellerId);
-                    const first = getProduct(group.lines[0].productId);
+                    const first = lineDisplay(group.lines[0]);
                     const sellerSub = seller
                       ? seller.location
                       : first?.sellerName;
@@ -156,7 +157,7 @@ export default function CartView() {
                         </div>
 
                         {group.lines.map((line) => {
-                          const product = getProduct(line.productId);
+                          const product = lineDisplay(line);
                           if (!product) return null;
                           const lineTotal = product.price * line.qty;
                           return (
@@ -165,12 +166,13 @@ export default function CartView() {
                               className="flex flex-col sm:flex-row gap-unit-md items-start"
                             >
                               <div className="w-full sm:w-28 h-36 bg-surface-container flex-shrink-0 overflow-hidden">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={product.imageUrls[0]}
-                                  alt={product.name}
-                                  className="w-full h-full object-cover"
-                                />
+                                {product.image ? (
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : null}
                               </div>
                               <div className="flex flex-col justify-between flex-grow w-full h-full gap-unit-xs">
                                 <div className="flex justify-between items-start gap-unit-sm">
@@ -179,9 +181,7 @@ export default function CartView() {
                                       {product.name}
                                     </h3>
                                     <p className="font-body-utility text-body-utility text-text-muted">
-                                      {t("cart.articlesCount", {
-                                        n: product.sizes.length,
-                                      })}
+                                      {product.sellerName}
                                     </p>
                                     <div className="flex items-center gap-unit-sm mt-unit-xs font-mono-technical text-mono-technical text-primary">
                                       <span className="bg-surface-container-high px-unit-xs py-unit-2xs">
