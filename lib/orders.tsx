@@ -29,6 +29,8 @@ export type OrderItem = {
   size: string;
   qty: number;
   price: number;
+  /** Real variant SKU for live-catalog lines (mock lines rebuild it). */
+  sku?: string;
 };
 
 export type OrderCustomer = {
@@ -247,7 +249,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase.rpc("order_place", {
       p_items: input.items.map((i) => ({
-        sku: `${i.productId}-${i.size.replace(/\s+/g, "").toUpperCase()}`,
+        // Live lines carry the real variant SKU; mock lines rebuild it.
+        sku:
+          i.sku ??
+          `${i.productId}-${i.size.replace(/\s+/g, "").toUpperCase()}`,
         qty: i.qty,
       })),
       p_name: input.customer.name,
@@ -331,21 +336,47 @@ export function useOrders() {
 
 /** Snapshot an order item's merchandising details at the moment it was placed. */
 export function buildOrderItems(
-  lines: { productId: string; size: string; qty: number }[]
+  lines: {
+    productId: string;
+    size: string;
+    qty: number;
+    sku?: string;
+    price?: number;
+    name?: string;
+    sellerName?: string;
+  }[]
 ): OrderItem[] {
   return lines.flatMap((l) => {
     const p = getProduct(l.productId);
-    if (!p) return [];
-    return [
-      {
-        productId: p.id,
-        name: p.name,
-        sellerId: p.sellerId,
-        sellerName: p.sellerName,
-        size: l.size,
-        qty: l.qty,
-        price: p.price,
-      },
-    ];
+    if (p) {
+      return [
+        {
+          productId: p.id,
+          name: p.name,
+          sellerId: p.sellerId,
+          sellerName: p.sellerName,
+          size: l.size,
+          qty: l.qty,
+          price: p.price,
+          ...(l.sku ? { sku: l.sku } : null),
+        },
+      ];
+    }
+    // Live-catalog line: merchandising comes from the cart snapshot.
+    if (typeof l.name === "string" && typeof l.price === "number") {
+      return [
+        {
+          productId: l.productId,
+          name: l.name,
+          sellerId: "live",
+          sellerName: l.sellerName ?? "",
+          size: l.size,
+          qty: l.qty,
+          price: l.price,
+          ...(l.sku ? { sku: l.sku } : null),
+        },
+      ];
+    }
+    return [];
   });
 }

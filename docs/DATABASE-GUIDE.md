@@ -163,7 +163,8 @@ where n.nspname = 'public' and proname like 'vendor_%' order by 1;
 
 ## 5. Files that match this doc
 
-- `supabase/migrations/0001–0014*.sql` — schema + RPCs, applied in numeric order
+- `supabase/migrations/0001–0015*.sql` — schema + RPCs, applied in numeric order (`0015` = public catalog reads: `catalog_products`, `catalog_product`)
+- Live storefront: category `all` page, product pages, cart, and COD checkout all read/buy real vendor variants by SKU (`order_place` matches `product_variants.sku` exactly and checks stock). Vendor products without a category show under "all" only.
 - `lib/vendors.server.ts`, `lib/orders.server.ts` — server-side DB access
 - `app/api/seller/*`, `app/api/account/orders`, `app/api/ops` — API routes
 - `docs/DATABASE.md` — older developer-oriented notes (partially outdated: it still mentions Auth0; this guide is the current one)

@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
-import { useCart } from "@/lib/cart";
+import { lineDisplay, useCart } from "@/lib/cart";
 import { useLang } from "@/lib/i18n";
-import { formatPrice, getProduct } from "@/lib/mock";
+import { formatPrice } from "@/lib/mock";
 import { deliveryFeeFor, FREE_DELIVERY_OVER } from "@/lib/wilayas";
 import { IconButton } from "@/components/ui";
 
@@ -79,7 +79,7 @@ export default function CartDrawer() {
             <div className="flex-1 overflow-y-auto">
               <ul className="divide-y divide-border-rule">
                 {items.map((line) => {
-                  const product = getProduct(line.productId);
+                  const product = lineDisplay(line);
                   if (!product) return null;
                   return (
                     <li key={`${line.productId}-${line.size}`} className="flex gap-4 px-unit-lg py-5">
@@ -89,13 +89,15 @@ export default function CartDrawer() {
                         onClick={closeCart}
                         className="relative block h-24 w-24 shrink-0 overflow-hidden border border-border-rule bg-surface-canvas"
                       >
-                        <Image
-                          src={product.imageUrls[0]}
-                          alt={product.name}
-                          fill
-                          sizes="96px"
-                          className="object-cover"
-                        />
+                        {product.image ? (
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            fill
+                            sizes="96px"
+                            className="object-cover"
+                          />
+                        ) : null}
                       </Link>
                       <div className="flex min-w-0 flex-1 flex-col">
                         <div className="flex items-start justify-between gap-3">
