@@ -93,6 +93,47 @@ export function listCategories() {
   return call<Json[]>("catalog_categories", {});
 }
 
+const IMAGE_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/**
+ * Store a vendor product photo from an uploaded file. Ownership-checked,
+ * 5 MB max. Returns the public URL to save as the product image.
+ */
+export async function uploadProductImage(
+  owner: string,
+  vendorId: string,
+  data: ArrayBuffer,
+  mime: string,
+  size: number
+): Promise<string> {
+  const ext = IMAGE_MIME[mime];
+  if (!ext) throw new Error("Only JPEG, PNG or WebP photos are allowed");
+  if (!Number.isFinite(size) || size <= 0 || size > 5 * 1024 * 1024) {
+    throw new Error("Photo must be under 5 MB");
+  }
+  const owned = await listOwnVendors(owner);
+  const ok = (owned as unknown as { id?: string }[]).some((v) => v?.id === vendorId);
+  if (!ok) throw new Error("forbidden");
+
+  const supabase = admin();
+  if (!supabase) throw new Error("Supabase service role is not configured");
+  const rand =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  const path = `${owner}/${vendorId}/${Date.now().toString(36)}-${rand}.${ext}`;
+  const { error } = await supabase.storage
+    .from("product-images")
+    .upload(path, Buffer.from(data), { contentType: mime, upsert: false });
+  if (error) throw new Error(error.message);
+  const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
+  return pub.publicUrl;
+}
+
 export function listVendorProducts(owner: string, vendorId: string) {
   return call<Json[]>("vendor_products_list", { p_owner: owner, p_vendor_id: vendorId });
 }
