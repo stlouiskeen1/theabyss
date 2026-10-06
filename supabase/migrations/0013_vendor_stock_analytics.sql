@@ -51,7 +51,7 @@ begin
     from (
       select
         p.id, p.name, p.slug, p.description, p.brand,
-        p.base_price, p.currency, p.status, p.created_at,
+        p.base_price, p.currency, p.status, p.category_id, p.created_at,
         (select coalesce(jsonb_agg(to_jsonb(v) order by v.created_at), '[]')
          from public.product_variants v where v.product_id = p.id) as variants,
         (select coalesce(jsonb_agg(to_jsonb(i) order by i.position), '[]')

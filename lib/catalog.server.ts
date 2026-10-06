@@ -98,7 +98,18 @@ export function getLiveProduct(slug: string) {
   return call<Json | null>("catalog_product", { p_slug: slug });
 }
 
-const CATEGORY_FALLBACK: Category = "APPAREL";
+const SLUG_TO_CATEGORY: Record<string, Category> = {
+  apparel: "APPAREL",
+  footwear: "FOOTWEAR",
+  accessories: "ACCESSORIES",
+  outerwear: "OUTERWEAR",
+};
+
+/** Map a live DB category slug to a mock category (null-category → all grids). */
+export function liveCategory(slug?: string | null): Category | null {
+  if (!slug) return null;
+  return SLUG_TO_CATEGORY[slug] ?? null;
+}
 
 /** Map a live row into the mock Product shape the views already render. */
 export function toMockProduct(row: LiveListRow): Product {
@@ -110,7 +121,7 @@ export function toMockProduct(row: LiveListRow): Product {
     price: Number(row.base_price ?? 0),
     sellerId: `live-vendor:${row.vendor_slug}`,
     sellerName: row.vendor_name,
-    category: CATEGORY_FALLBACK,
+    category: liveCategory(row.category_slug) ?? "APPAREL",
     gender: "UNISEX" as Gender,
     subcategory: "all",
     sizes: ["OS"],
@@ -141,7 +152,7 @@ export function toMockProductDetail(detail: LiveDetail): {
       price: Number(p.base_price ?? 0),
       sellerId: `live-vendor:${p.vendor_slug}`,
       sellerName: p.vendor_name,
-      category: CATEGORY_FALLBACK,
+      category: liveCategory(p.category_slug) ?? "APPAREL",
       gender: "UNISEX" as Gender,
       subcategory: "all",
       sizes: detail.variants.map((v) => v.size || "OS"),

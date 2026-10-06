@@ -33,6 +33,7 @@ type Body = {
   basePrice?: unknown;
   status?: unknown;
   imageUrl?: unknown;
+  categoryId?: unknown;
 };
 
 export async function POST(req: Request) {
@@ -82,9 +83,10 @@ export async function POST(req: Request) {
         description: typeof body?.description === "string" ? body.description.trim() || null : null,
         brand: typeof body?.brand === "string" ? body.brand.trim() || null : null,
         basePrice: price,
-        status: typeof body?.status === "string" ? body.status : null,
-        imageUrl: typeof body?.imageUrl === "string" ? body.imageUrl.trim() || null : null,
-      });
+      status: typeof body?.status === "string" ? body.status : null,
+      imageUrl: typeof body?.imageUrl === "string" ? body.imageUrl.trim() || null : null,
+      categoryId: typeof body?.categoryId === "string" && body.categoryId ? body.categoryId : null,
+    });
       return NextResponse.json({ product });
     } catch (e) {
       const msg = (e as Error).message.replace("vendor_product_upsert: ", "");

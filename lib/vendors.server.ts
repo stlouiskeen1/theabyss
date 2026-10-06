@@ -86,7 +86,12 @@ export type ProductUpsertInput = {
   basePrice: number;
   status?: string | null;
   imageUrl?: string | null;
+  categoryId?: string | null;
 };
+
+export function listCategories() {
+  return call<Json[]>("catalog_categories", {});
+}
 
 export function listVendorProducts(owner: string, vendorId: string) {
   return call<Json[]>("vendor_products_list", { p_owner: owner, p_vendor_id: vendorId });
@@ -104,6 +109,7 @@ export function upsertProduct(owner: string, vendorId: string, input: ProductUps
     p_base_price: input.basePrice,
     p_status: input.status ?? null,
     p_image_url: input.imageUrl ?? null,
+    p_category_id: input.categoryId ?? null,
   });
 }
 
