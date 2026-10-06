@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import CategoryView from "./CategoryView";
 import { listLiveProducts, toMockProduct } from "@/lib/catalog.server";
 import type { LiveListRow } from "@/lib/catalog.server";
-import type { Json } from "@/types/database.types";
 
 const SLUGS = ["all", "apparel", "footwear", "accessories", "outerwear"];
 
@@ -21,20 +20,20 @@ export default async function Page({
   if (!SLUGS.includes(slug)) notFound();
   const sp = await searchParams;
 
-  // Live catalog first; mock fallback when the backend is unreachable/empty.
-  // Vendor-created products carry no category yet, so non-"all" pages stay on
-  // mock until category assignment lands in the desk.
+  // Live catalog first (filtered by category); mock fallback when the
+  // backend is unreachable or has no live products for this shelf.
   let live: import("@/lib/mock").Product[] | undefined;
-  if (slug === "all") {
-    try {
-      const rows = (await listLiveProducts(null, null, 60)) as unknown as LiveListRow[] | Json[];
-      const list = rows as unknown as LiveListRow[];
-      if (Array.isArray(list) && list.length > 0) {
-        live = list.map(toMockProduct);
-      }
-    } catch {
-      live = undefined;
+  try {
+    const rows = (await listLiveProducts(
+      slug === "all" ? null : slug,
+      null,
+      60
+    ).catch(() => null)) as unknown as LiveListRow[] | null;
+    if (Array.isArray(rows) && rows.length > 0) {
+      live = rows.map(toMockProduct);
     }
+  } catch {
+    live = undefined;
   }
 
   return <CategoryView slug={slug} g={sp.g} sub={sp.sub} products={live} />;

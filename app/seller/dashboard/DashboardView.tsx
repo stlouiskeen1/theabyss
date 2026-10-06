@@ -53,11 +53,21 @@ type Product = {
   brand?: string | null;
   base_price: number | string;
   status: "draft" | "active" | "archived";
+  category_id?: string | null;
   stock_total: number;
   sold_units: number;
   variants: Variant[];
   images: { id: string; url: string }[];
 };
+
+type Category = { id: string; slug: string; name_en: string; name_fr: string };
+
+/** Marketplace visibility: what the buyer actually sees. */
+function visibilityOf(p: Product): { live: boolean; reason: string } {
+  if (p.status !== "active") return { live: false, reason: "Hidden — status is " + p.status };
+  if (Number(p.stock_total ?? 0) <= 0) return { live: false, reason: "Hidden — out of stock" };
+  return { live: true, reason: "Live on marketplace" };
+}
 
 type Analytics = {
   totals: {
@@ -264,9 +274,23 @@ export default function DashboardView() {
 
             {active && (
               <>
-                <div className="flex items-center justify-end gap-unit-md flex-wrap">
+                <div className="bg-surface-container-lowest rounded-xl shadow-xl p-unit-lg flex items-center gap-unit-md flex-wrap">
+                  <span className="h-14 w-14 rounded bg-primary text-on-primary flex items-center justify-center font-headline-sm text-headline-sm shrink-0">
+                    {active.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="flex flex-col">
+                    <p className="font-headline-sm text-headline-sm text-primary uppercase">
+                      {active.name}
+                    </p>
+                    <p className="font-mono-technical text-[11px] text-text-muted">
+                      {products?.length ?? "…"} products · {orders?.length ?? "…"} sub-orders ·{" "}
+                      {formatPrice(
+                        (orders ?? []).reduce((n, o) => n + Number(o.subtotal ?? 0), 0)
+                      )} volume
+                    </p>
+                  </div>
                   <span
-                    className={`font-label-caps-sm text-label-caps-sm uppercase px-unit-sm py-unit-2xs rounded ${
+                    className={`ml-auto font-label-caps-sm text-label-caps-sm uppercase px-unit-sm py-unit-2xs rounded ${
                       active.status === "active"
                         ? "bg-status-cod/15 text-primary"
                         : active.status === "pending"
@@ -466,7 +490,23 @@ function AnalyticsTab({
     );
   }
   const t0 = analytics.totals;
+  const hasData = Number(t0.suborders ?? 0) > 0;
   const maxDay = Math.max(1, ...analytics.daily.map((d) => Number(d.revenue ?? 0)));
+  if (!hasData) {
+    return (
+      <div className="bg-surface-container-lowest rounded-xl shadow-xl p-unit-lg md:p-unit-2xl flex flex-col gap-unit-md">
+        <p className="font-headline-sm text-headline-sm text-primary uppercase">No sales yet</p>
+        <p className="font-body-utility text-body-utility text-text-muted">
+          Your numbers will appear here once buyers check out. To get there:
+        </p>
+        <ol className="flex flex-col gap-unit-2xs font-body-utility text-body-utility text-primary">
+          <li>1 · Add products in the Stock tab with photos and a category.</li>
+          <li>2 · Set stock above 0 and flip each product to Active.</li>
+          <li>3 · Share your storefront link — orders, revenue and top products land here.</li>
+        </ol>
+      </div>
+    );
+  }
   const cards: [string, string][] = [
     [formatPrice(Number(t0.revenue ?? 0)), "Revenue"],
     [String(t0.units ?? 0), "Units sold"],
@@ -590,6 +630,7 @@ function ProductForm({
       description: string;
       imageUrl: string;
       status: string;
+      categoryId: string;
     }>(draftKey)
   );
   const [name, setName] = useState(restored?.name ?? initial?.name ?? "");
@@ -600,11 +641,26 @@ function ProductForm({
   const [description, setDescription] = useState(restored?.description ?? initial?.description ?? "");
   const [imageUrl, setImageUrl] = useState(restored?.imageUrl ?? initial?.images?.[0]?.url ?? "");
   const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
+  const [categoryId, setCategoryId] = useState(restored?.categoryId ?? initial?.category_id ?? "");
+  const [categories, setCategories] = useState<Category[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/seller/categories", { cache: "no-store" })
+      .then(async (res) => {
+        const data = (await readJson(res)) as { categories?: Category[] };
+        if (live && res.ok) setCategories(data.categories ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // Autosave the draft on every keystroke; cleared on successful submit.
   useEffect(() => {
-    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status });
-  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status]);
+    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId });
+  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId]);
 
   return (
     <form
@@ -620,6 +676,7 @@ function ProductForm({
           basePrice: Number(price),
           status,
           imageUrl: imageUrl.trim() || null,
+          categoryId: categoryId || null,
         });
       }}
       className="bg-surface-container-low rounded-lg p-unit-md flex flex-col gap-unit-sm"
@@ -680,7 +737,13 @@ function ProductForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-sm">
         <label className="flex flex-col gap-unit-2xs">
           <span className={labelCls}>Image URL</span>
-          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputCls} />
+          <div className="flex gap-unit-2xs items-center">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" className="h-11 w-11 rounded object-cover bg-surface-container-low shrink-0" />
+            ) : null}
+            <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className={inputCls} placeholder="https://…" />
+          </div>
         </label>
         <label className="flex flex-col gap-unit-2xs">
           <span className={labelCls}>Status</span>
@@ -690,6 +753,22 @@ function ProductForm({
             <option value="archived">Archived</option>
           </select>
         </label>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-sm">
+        <label className="flex flex-col gap-unit-2xs">
+          <span className={labelCls}>Category</span>
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputCls}>
+            <option value="">Uncategorized (shows under “All” only)</option>
+            {(categories ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name_en}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="font-mono-technical text-[11px] text-text-muted self-end pb-unit-2xs">
+          New products start as Draft with 0 stock — set stock, then Publish to go live.
+        </p>
       </div>
       {error && (
         <p role="alert" className="font-mono-technical text-mono-technical text-accent-crimson">
@@ -945,15 +1024,33 @@ function ProductsTab(props: {
           No products yet — add your first one above.
         </p>
       ) : (
-        products.map((p) => (
+        products.map((p) => {
+          const vis = visibilityOf(p);
+          const cover = p.images?.[0]?.url;
+          return (
           <div key={p.id} className="border border-border-rule rounded-lg p-unit-sm">
             <div className="flex items-center gap-unit-sm flex-wrap">
+              {cover ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={cover} alt="" className="h-14 w-14 rounded object-cover bg-surface-container-low shrink-0" />
+              ) : (
+                <span className="h-14 w-14 rounded bg-surface-container-low shrink-0 flex items-center justify-center font-headline-sm text-headline-sm text-text-muted">
+                  {p.name.slice(0, 1).toUpperCase()}
+                </span>
+              )}
               <div className="flex flex-col">
                 <span className="font-body-utility text-body-utility font-medium text-primary">
                   {p.name}
                 </span>
                 <span className="font-mono-technical text-[11px] text-text-muted">
                   {formatPrice(Number(p.base_price))} · {p.sold_units}u sold · {p.stock_total} in stock · {p.status}
+                </span>
+                <span
+                  className={`font-mono-technical text-[11px] uppercase ${
+                    vis.live ? "text-status-cod font-bold" : "text-accent-crimson/80"
+                  }`}
+                >
+                  {vis.live ? "● Live on marketplace" : `○ ${vis.reason}`}
                 </span>
               </div>
               <div className="ml-auto flex items-center gap-unit-2xs flex-wrap">
@@ -1016,7 +1113,8 @@ function ProductsTab(props: {
               </div>
             )}
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );
