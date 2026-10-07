@@ -6,9 +6,19 @@ import { searchProducts } from "@/lib/mock";
 import ProductGrid from "@/components/ProductGrid";
 import { ButtonLink } from "@/components/ui";
 
-export default function SearchView({ query }: { query: string }) {
+export default function SearchView({
+  query,
+  live,
+}: {
+  query: string;
+  /** Live-catalog matches (mapped to mock shape); merged ahead of mock. */
+  live?: import("@/lib/mock").Product[];
+}) {
   const { t } = useLang();
-  const results = useMemo(() => searchProducts(query), [query]);
+  const results = useMemo(
+    () => [...(live ?? []), ...searchProducts(query)],
+    [query, live]
+  );
 
   return (
     <div>
