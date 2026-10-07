@@ -391,8 +391,10 @@ export default function DashboardView() {
                         const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
+                        return true;
                       } catch (e) {
                         setError((e as Error).message);
+                        return false;
                       }
                     }}
                     onToggleActive={async (p) => {
@@ -414,8 +416,10 @@ export default function DashboardView() {
                         const data = (await readJson(res)) as { error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         refreshProducts();
+                        return true;
                       } catch (e) {
                         setError((e as Error).message);
+                        return false;
                       }
                     }}
                     onStock={async (variantId, stock) => {
@@ -1068,14 +1072,24 @@ function ProductsTab(props: {
   onEdit: (p: Product) => void;
   onCloseForm: () => void;
   onSubmit: (payload: Record<string, unknown>) => void;
-  onArchive: (p: Product, hard: boolean) => void;
-  onToggleActive: (p: Product) => void;
+  onArchive: (p: Product, hard: boolean) => Promise<boolean>;
+  onToggleActive: (p: Product) => Promise<boolean>;
   onStock: (variantId: string, stock: number) => void;
   onVariantUpsert: (productId: string, v: Record<string, unknown>) => void;
   onVariantDelete: (variantId: string) => void;
 }) {
   const { products } = props;
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Inline feedback next to the buttons (the page-level error sits far
+  // above, so failures here used to look like a dead button).
+  const flash = (ok: boolean, msg: string) => {
+    setNote({ ok, msg });
+    window.setTimeout(() => {
+      setNote((cur) => (cur?.msg === msg ? null : cur));
+    }, 4000);
+  };
 
   if (!products) {
     return (
@@ -1091,6 +1105,16 @@ function ProductsTab(props: {
         <p className="font-label-caps text-label-caps text-primary uppercase">
           Stock · {products.length} products
         </p>
+        {note && (
+          <span
+            role="status"
+            className={`font-mono-technical text-[11px] uppercase ${
+              note.ok ? "text-status-cod font-bold" : "text-accent-crimson"
+            }`}
+          >
+            {note.msg}
+          </span>
+        )}
         <button
           type="button"
           onClick={props.onNew}
@@ -1166,16 +1190,26 @@ function ProductsTab(props: {
                 >
                   {expanded === p.id ? "Hide stock" : "Stock"}
                 </button>
+        <button
+          type="button"
+          onClick={() => props.onEdit(p)}
+          className="font-mono-technical text-[11px] uppercase text-text-muted hover:text-primary px-unit-2xs"
+        >
+          Edit
+        </button>
                 <button
                   type="button"
-                  onClick={() => props.onEdit(p)}
-                  className="font-mono-technical text-[11px] uppercase text-text-muted hover:text-primary px-unit-2xs"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => props.onToggleActive(p)}
+                  onClick={async () => {
+                    const ok = await props.onToggleActive(p);
+                    flash(
+                      ok,
+                      ok
+                        ? p.status === "active"
+                          ? "Unpublished ✓"
+                          : "Published ✓ — add stock if it still shows Hidden"
+                        : "Failed — see error above"
+                    );
+                  }}
                   className="font-mono-technical text-[11px] uppercase text-text-muted hover:text-primary px-unit-2xs"
                 >
                   {p.status === "active" ? "Unpublish" : "Publish"}
@@ -1183,8 +1217,10 @@ function ProductsTab(props: {
                 {p.status === "archived" ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm("Permanently delete? Only possible if it never sold.")) props.onArchive(p, true);
+                    onClick={async () => {
+                      if (!window.confirm("Permanently delete? Only possible if it never sold.")) return;
+                      const ok = await props.onArchive(p, true);
+                      flash(ok, ok ? "Deleted ✓" : "Delete failed — see error above");
                     }}
                     className="font-mono-technical text-[11px] uppercase text-accent-crimson/80 hover:text-accent-crimson px-unit-2xs"
                   >
@@ -1193,7 +1229,10 @@ function ProductsTab(props: {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => props.onArchive(p, false)}
+                    onClick={async () => {
+                      const ok = await props.onArchive(p, false);
+                      flash(ok, ok ? "Archived ✓" : "Archive failed — see error above");
+                    }}
                     className="font-mono-technical text-[11px] uppercase text-text-muted hover:text-primary px-unit-2xs"
                   >
                     Archive
