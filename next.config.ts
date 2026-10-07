@@ -27,6 +27,14 @@ const nextConfig: NextConfig = {
         pathname: "/seed/**",
         search: "",
       },
+      // Seller-uploaded product photos (Supabase Storage public URLs).
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/public/**",
+        search: "",
+      },
     ],
   },
 };

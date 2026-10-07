@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLang, promoLabelKey, subcategoryLabelKey } from "@/lib/i18n";
-import { formatPrice, getSeller, type Product } from "@/lib/mock";
+import { formatPrice, getSeller, safeImage, type Product } from "@/lib/mock";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { SwatchDot, WishlistButton } from "@/components/ui";
@@ -37,7 +37,7 @@ export default function ProductCard({ product }: { product: Product }) {
         >
           {/* Cover photo = imageUrls[colorway] (slot ab-XX). Swap via IMAGE_MAP in lib/mock.ts. */}
           <Image
-            src={product.imageUrls[colorway]}
+            src={safeImage(product.imageUrls[colorway], `card-${product.id}`, 800, 1000)}
             alt={product.name}
             fill
             sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
