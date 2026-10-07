@@ -111,10 +111,12 @@ export function liveCategory(slug?: string | null): Category | null {
   return SLUG_TO_CATEGORY[slug] ?? null;
 }
 
-/** Map a live row into the mock Product shape the views already render. */
+/** Map a live row into the mock Product shape the views already render.
+ *  The id is the plain live slug so links stay clean (`/product/my-slug`).
+ *  Live rows are detected by their `live-vendor:` sellerId, never the id. */
 export function toMockProduct(row: LiveListRow): Product {
   return {
-    id: `live:${row.slug}`,
+    id: row.slug,
     name: row.name,
     description: row.description ?? row.name,
     descriptionFr: row.description ?? row.name,
@@ -145,7 +147,7 @@ export function toMockProductDetail(detail: LiveDetail): {
       : [placeholder(`product-${p.slug}`, 800, 1000)];
   return {
     product: {
-      id: `live:${p.slug}`,
+      id: p.slug,
       name: p.name,
       description: p.description ?? p.name,
       descriptionFr: p.description ?? p.name,
