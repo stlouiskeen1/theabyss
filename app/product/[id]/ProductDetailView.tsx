@@ -75,6 +75,7 @@ export type LivePdp = {
     price_override?: number | string | null;
     stock_quantity: number;
   }[];
+  vendorSlug: string;
 } | null;
 
 export default function ProductDetailView({
@@ -88,6 +89,18 @@ export default function ProductDetailView({
   const { add } = useCart();
   const { has, toggle: toggleWish } = useWishlist();
   const seller = getSeller(product.sellerId);
+  // Live products show real boutique data only — never mock filler
+  // (fake atelier codes, invented dye names). Memorized rule.
+  const isLive = !!live;
+  const vendorHref = seller ? `/seller/${seller.id}` : isLive ? `/seller/${live.vendorSlug}` : "/seller";
+  const monogram = seller
+    ? code
+    : isLive
+      ? product.sellerName.slice(0, 1).toUpperCase()
+      : code;
+  const liveColors = isLive
+    ? [...new Set(live.variants.map((v) => v.color?.trim()).filter(Boolean))] as string[]
+    : [];
 
   /** Live variant matching a size label (mapped sizes mirror variant sizes). */
   const liveVariantFor = (s: string) =>
@@ -304,7 +317,7 @@ export default function ProductDetailView({
                       {t("pdp.certified")}
                     </span>
                     <span className="font-mono-technical text-[10px] text-text-muted">
-                      ATELIER {code} · {t("pdp.lotTag")}
+                      {isLive ? product.sellerName : `ATELIER ${code}`} · {t("pdp.lotTag")}
                     </span>
                   </div>
                 </div>
@@ -431,11 +444,11 @@ export default function ProductDetailView({
               {/* Boutique attribution badge */}
               <div className="w-full flex items-center justify-between pb-unit-sm bg-surface-container-low p-unit-sm">
                 <Link
-                  href={`/seller/${seller?.id ?? ""}`}
+                  href={vendorHref}
                   className="flex items-center gap-unit-sm"
                 >
                   <div className="w-10 h-10 bg-primary text-on-primary flex items-center justify-center font-display-hero text-headline-sm">
-                    {code}
+                    {monogram}
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5">
@@ -448,9 +461,11 @@ export default function ProductDetailView({
                         className="text-status-cod"
                         />
                     </div>
-                    <span className="font-mono-technical text-[10px] text-text-muted uppercase">
-                      {seller ? seller.location : `ATELIER {code}`}
-                    </span>
+                    {isLive ? null : (
+                      <span className="font-mono-technical text-[10px] text-text-muted uppercase">
+                        {seller ? seller.location : `ATELIER ${code}`}
+                      </span>
+                    )}
                   </div>
                 </Link>
                 <div className="flex flex-col items-end">
@@ -505,18 +520,23 @@ export default function ProductDetailView({
                 </div>
               </div>
 
-              {/* Color swatches */}
+              {/* Color swatches (mock only) / real variant colors (live) */}
+              {isLive && product.swatches.length === 0 && liveColors.length === 0 ? null : (
               <div className="flex flex-col gap-unit-xs">
                 <div className="flex justify-between items-center">
                   <span className="font-label-caps text-label-caps uppercase text-primary">
                     {t("pdp.stockCol")}{" "}
                     <span className="text-text-muted font-normal">
-                      {SWATCH_NAMES[selected] ?? `COL ${selected + 1}`}
+                      {isLive
+                        ? liveColors.join(" / ")
+                        : (SWATCH_NAMES[selected] ?? `COL ${selected + 1}`)}
                     </span>
                   </span>
-                  <span className="font-mono-technical text-[10px] text-text-muted">
-                    {t("pdp.dye")}
-                  </span>
+                  {isLive ? null : (
+                    <span className="font-mono-technical text-[10px] text-text-muted">
+                      {t("pdp.dye")}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-unit-sm pt-1 flex-wrap">
                   {product.swatches.map((c, i) => (
@@ -548,6 +568,7 @@ export default function ProductDetailView({
                   ))}
                 </div>
               </div>
+              )}
 
               {/* Size selector & inventory */}
               <div className="flex flex-col gap-unit-xs">
@@ -555,6 +576,7 @@ export default function ProductDetailView({
                   <span className="font-label-caps text-label-caps uppercase text-primary">
                     {t("pdp.selectSize")}
                   </span>
+                  {isLive ? null : (
                   <button
                     type="button"
                     onClick={() => setSizeModal(true)}
@@ -574,6 +596,7 @@ export default function ProductDetailView({
                     </svg>
                     <span>{t("pdp.sizeGuide")}</span>
                   </button>
+                  )}
                 </div>
                 <div
                   className="grid gap-unit-xs pt-1"

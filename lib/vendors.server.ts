@@ -87,6 +87,8 @@ export type ProductUpsertInput = {
   status?: string | null;
   imageUrl?: string | null;
   categoryId?: string | null;
+  sizes?: string[] | null;
+  color?: string | null;
 };
 
 export function listCategories() {
@@ -151,6 +153,8 @@ export function upsertProduct(owner: string, vendorId: string, input: ProductUps
     p_status: input.status ?? null,
     p_image_url: input.imageUrl ?? null,
     p_category_id: input.categoryId ?? null,
+    p_sizes: input.sizes ?? null,
+    p_color: input.color ?? null,
   });
 }
 

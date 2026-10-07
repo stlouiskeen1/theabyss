@@ -24,7 +24,12 @@ export default async function Page({
   const detail = (await getLiveProduct(slug).catch(() => null)) as LiveDetail | null;
   if (detail?.product) {
     const mapped = toMockProductDetail(detail);
-    return <ProductDetailView product={mapped.product} live={{ variants: mapped.variants }} />;
+    return (
+      <ProductDetailView
+        product={mapped.product}
+        live={{ variants: mapped.variants, vendorSlug: mapped.vendorSlug }}
+      />
+    );
   }
   notFound();
 }
