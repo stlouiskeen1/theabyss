@@ -73,12 +73,16 @@ stable
 security definer set search_path = public
 as $$
 declare
+  v_slug text := lower(btrim(replace(coalesce(p_slug, ''), 'live:', '')));
   v_id uuid;
 begin
+  if v_slug = '' then
+    return null;
+  end if;
   select p.id into v_id
   from public.products p
   join public.vendors v on v.id = p.vendor_id and v.status = 'active'
-  where p.slug = p_slug and p.status = 'active'
+  where lower(p.slug) = v_slug and p.status = 'active'
   limit 1;
   if v_id is null then
     return null;
