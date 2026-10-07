@@ -19,6 +19,7 @@ import {
   getRelated,
   getSeller,
   placeholder,
+  safeImage,
   type Product,
 } from "@/lib/mock";
 import { wilayaName } from "@/lib/wilayas";
@@ -119,7 +120,9 @@ export default function ProductDetailView({
   const shots = useMemo(
     () =>
       [
-        ...product.imageUrls.slice(0, 3),
+        ...product.imageUrls
+          .slice(0, 3)
+          .map((src, i) => safeImage(src, `pdp-${product.id}-${i}`, 1200, 1200)),
         asset(
           `${product.id}-4`,
           placeholder(`thing-${product.id}-d`, 1200, 1200)

@@ -114,6 +114,24 @@ export const placeholder = (seed: string, w: number, h: number) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
 /**
+ * Crash-proof cover resolver for next/image. Sellers can paste any URL, but
+ * next/image only serves configured hosts — anything else (Google redirect
+ * links, hotlink-protected CDNs…) throws at render and takes the whole page
+ * down. Unknown hosts fall back to a placeholder instead.
+ */
+export const safeImage = (src: string | undefined | null, seed: string, w = 800, h = 1000) => {
+  if (!src) return placeholder(seed, w, h);
+  if (src.startsWith("/")) return src;
+  try {
+    const host = new URL(src).hostname.toLowerCase();
+    if (host === "picsum.photos" || host.endsWith(".supabase.co")) return src;
+  } catch {
+    /* malformed URL → placeholder below */
+  }
+  return placeholder(seed, w, h);
+};
+
+/**
  * IMAGE_MAP — your own images, keyed by slot name.
  *
  * Example: drop a photo at `public/images/ab-01.jpg` and add
