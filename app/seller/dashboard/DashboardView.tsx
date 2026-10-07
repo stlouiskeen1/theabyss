@@ -658,6 +658,8 @@ function ProductForm({
       imageUrl: string;
       status: string;
       categoryId: string;
+      sizesText: string;
+      color: string;
     }>(draftKey)
   );
   const [name, setName] = useState(restored?.name ?? initial?.name ?? "");
@@ -669,6 +671,8 @@ function ProductForm({
   const [imageUrl, setImageUrl] = useState(restored?.imageUrl ?? initial?.images?.[0]?.url ?? "");
   const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(restored?.categoryId ?? initial?.category_id ?? "");
+  const [sizesText, setSizesText] = useState(restored?.sizesText ?? "");
+  const [color, setColor] = useState(restored?.color ?? "");
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -707,8 +711,8 @@ function ProductForm({
 
   // Autosave the draft on every keystroke; cleared on successful submit.
   useEffect(() => {
-    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId });
-  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId]);
+    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId, sizesText, color });
+  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId, sizesText, color]);
 
   return (
     <form
@@ -725,6 +729,16 @@ function ProductForm({
           status,
           imageUrl: imageUrl.trim() || null,
           categoryId: categoryId || null,
+          // Sizes/colors only apply at creation (later: manage them in Stock).
+          ...(!initial
+            ? {
+                sizes: sizesText
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+                color: color.trim() || null,
+              }
+            : null),
         });
       }}
       className="bg-surface-container-low rounded-lg p-unit-md flex flex-col gap-unit-sm"
@@ -836,6 +850,35 @@ function ProductForm({
           New products start as Draft with 0 stock — set stock, then Publish to go live.
         </p>
       </div>
+      {!initial && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-sm">
+          <label className="flex flex-col gap-unit-2xs">
+            <span className={labelCls}>Sizes (comma separated)</span>
+            <input
+              value={sizesText}
+              onChange={(e) => setSizesText(e.target.value)}
+              placeholder="e.g. 38, 39, 40, 41 or S, M, L"
+              maxLength={200}
+              className={inputCls}
+            />
+          </label>
+          <label className="flex flex-col gap-unit-2xs">
+            <span className={labelCls}>Color (optional)</span>
+            <input
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              placeholder="e.g. Noir"
+              maxLength={40}
+              className={inputCls}
+            />
+          </label>
+        </div>
+      )}
+      {!initial && (
+        <p className="font-mono-technical text-[11px] text-text-muted">
+          Leave sizes empty for a single one-size item. Each size becomes its own stock line.
+        </p>
+      )}
       {error && (
         <p role="alert" className="font-mono-technical text-mono-technical text-accent-crimson">
           {error}

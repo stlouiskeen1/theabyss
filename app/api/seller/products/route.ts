@@ -34,6 +34,8 @@ type Body = {
   status?: unknown;
   imageUrl?: unknown;
   categoryId?: unknown;
+  sizes?: unknown;
+  color?: unknown;
 };
 
 export async function POST(req: Request) {
@@ -86,6 +88,13 @@ export async function POST(req: Request) {
       status: typeof body?.status === "string" ? body.status : null,
       imageUrl: typeof body?.imageUrl === "string" ? body.imageUrl.trim() || null : null,
       categoryId: typeof body?.categoryId === "string" && body.categoryId ? body.categoryId : null,
+      sizes: Array.isArray(body?.sizes)
+        ? (body.sizes as unknown[])
+            .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+            .map((s) => s.trim().slice(0, 20))
+            .slice(0, 20)
+        : null,
+      color: typeof body?.color === "string" ? body.color.trim().slice(0, 40) || null : null,
     });
       return NextResponse.json({ product });
     } catch (e) {

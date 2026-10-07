@@ -36,18 +36,15 @@ const ORAN_COMMUNES = [
   "Bir El Djir",
 ];
 
-const OTHER_COMMUNES = [
-  "Commune Chef-Lieu",
-  "Centre-Ville",
-  "Secteur Urbain Est",
-];
-
-const communesFor = (wilaya: string) =>
+// Only Alger & Oran have curated commune lists. Every other wilaya gets a
+// free-text commune field (stored as-is in addresses.commune_name) instead
+// of fake generic options.
+const communesFor = (wilaya: string): string[] | null =>
   wilaya === "16"
     ? ALGER_COMMUNES
     : wilaya === "31"
       ? ORAN_COMMUNES
-      : OTHER_COMMUNES;
+      : null;
 
 const isValidPhone = (raw: string) => {
   let digits = raw.replace(/[\s.\-()]/g, "");
@@ -313,7 +310,7 @@ export default function CheckoutView() {
                         value={fields.wilaya}
                         onChange={(e) => {
                           set("wilaya")(e.target.value);
-                          set("commune")(communesFor(e.target.value)[0]);
+                          set("commune")(communesFor(e.target.value)?.[0] ?? "");
                         }}
                         className={`${fieldClass(!!errors.wilaya)} appearance-none pr-10 cursor-pointer`}
                       >
@@ -335,23 +332,35 @@ export default function CheckoutView() {
                     >
                       {t("checkout.communeLabel")}
                     </label>
-                    <div className="relative">
-                      <select
+                    {communes ? (
+                      <div className="relative">
+                        <select
+                          id="co-commune"
+                          value={fields.commune}
+                          onChange={(e) => set("commune")(e.target.value)}
+                          className={`${fieldClass(!!errors.commune)} appearance-none pr-10 cursor-pointer`}
+                        >
+                          {communes.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-3 top-3 text-primary">
+                          <ChevronDownIcon className="h-5 w-5" />
+                        </span>
+                      </div>
+                    ) : (
+                      <input
                         id="co-commune"
+                        type="text"
                         value={fields.commune}
                         onChange={(e) => set("commune")(e.target.value)}
-                        className={`${fieldClass(!!errors.commune)} appearance-none pr-10 cursor-pointer`}
-                      >
-                        {communes.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-3 text-primary">
-                        <ChevronDownIcon className="h-5 w-5" />
-                      </span>
-                    </div>
+                        placeholder={t("checkout.communePlaceholder")}
+                        maxLength={80}
+                        className={fieldClass(!!errors.commune)}
+                      />
+                    )}
                   </div>
                   <div className="md:col-span-2 flex flex-col gap-unit-2xs">
                     <label
