@@ -15,15 +15,16 @@ export default async function Page({
 }) {
   const { id } = await params;
 
-  // Live catalog first (`live:slug` ids or plain live slugs); mock fallback.
+  // Mock catalogue first (instant, sync). Live lookup second for slugs the
+  // mock store doesn't know. Legacy `live:`-prefixed links keep working.
+  const mock = getProduct(id);
+  if (mock) return <ProductDetailView product={mock} />;
+
   const slug = id.startsWith("live:") ? id.slice("live:".length) : id;
   const detail = (await getLiveProduct(slug).catch(() => null)) as LiveDetail | null;
   if (detail?.product) {
     const mapped = toMockProductDetail(detail);
     return <ProductDetailView product={mapped.product} live={{ variants: mapped.variants }} />;
   }
-
-  const product = getProduct(id);
-  if (!product) notFound();
-  return <ProductDetailView product={product} />;
+  notFound();
 }

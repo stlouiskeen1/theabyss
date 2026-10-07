@@ -17,7 +17,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const seller = getSeller(product.sellerId);
   // Live products need a real variant SKU, which is only known on the PDP —
   // so their card actions route there instead of quick-adding blindly.
-  const isLive = product.id.startsWith("live:");
+  const isLive = product.sellerId.startsWith("live-vendor:");
   const onSale = typeof product.originalPrice === "number";
   const pct = onSale
     ? Math.round(
