@@ -8,6 +8,11 @@
         "SUPABASE_ACCESS_TOKEN": "",
         "SUPABASE_PROJECT_REF": ""
       }
+    },
+    "rea": {
+      "type": "local",
+      "command": ["npx", "-y", "rea-agents@latest", "mcp"],
+      "enabled": true
     }
   }
 }

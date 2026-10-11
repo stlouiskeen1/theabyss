@@ -1,0 +1,13 @@
+{
+  "browser": { "mode": "launch", "executable_path": "C:\\\\Users\\\\asus\\\\AppData\\\\Local\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe" },
+  "start_url": { "url": "https://www.farfetch.com/" },
+  "actions": [
+    { "step_id": "step1", "action": "wait_for", "locator": { "kind": "css", "selector": "body" }, "state": "visible" },
+    { "step_id": "step2", "action": "wait_for_timeout", "duration_ms": 5000 }
+  ],
+  "capture": {
+    "at_end": ["dom", "network", "url", "history", "storage"],
+    "after_each_step": ["dom", "network"],
+    "network": { "request_body": true, "response_body": true, "header_values": true }
+  }
+}
