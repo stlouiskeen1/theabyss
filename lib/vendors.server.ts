@@ -137,7 +137,7 @@ export async function uploadProductImage(
   const path = `${owner}/${vendorId}/${Date.now().toString(36)}-${rand}.${ext}`;
   const { error } = await supabase.storage
     .from("product-images")
-    .upload(path, Buffer.from(data), { contentType: mime, upsert: false });
+    .upload(path, Buffer.from(data), { contentType: mime, upsert: false, cacheControl: "31536000" });
   if (error) throw new Error(error.message);
   const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
 
