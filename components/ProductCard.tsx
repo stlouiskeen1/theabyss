@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useLang, promoLabelKey, subcategoryLabelKey } from "@/lib/i18n";
 import { formatPrice, getSeller, safeImage, type Product } from "@/lib/mock";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { SwatchDot, WishlistButton } from "@/components/ui";
+import OptimizedImage from "@/components/OptimizedImage";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { t } = useLang();
@@ -29,19 +29,23 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <article className="group relative flex flex-col justify-between border border-border-rule bg-surface-paper transition-all duration-150 hover:border-primary">
       {/* Media */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden border-b border-border-rule bg-surface-canvas">
+      <div className="relative aspect-[4/5] w-full overflow-hidden border-b border-border-rule bg-surface-canvas">
         <Link
           href={`/product/${product.id}`}
           aria-label={product.name}
           className="focus-kill absolute inset-0 block"
         >
           {/* Cover photo = imageUrls[colorway] (slot ab-XX). Swap via IMAGE_MAP in lib/mock.ts. */}
-          <Image
+          <OptimizedImage
             src={safeImage(product.imageUrls[colorway], `card-${product.id}`, 800, 1000)}
             alt={product.name}
-            fill
-            sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
+            width={800}
+            height={1000}
+            priority={false}
+            loading="lazy"
+            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
             className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
+            useTransformations={true}
           />
           {product.promo || onSale ? (
             <span

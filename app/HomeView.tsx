@@ -437,7 +437,7 @@ export default function HomeView({
               {t("home.viewAll")}
             </Link>
           </div>
-          <ProductGrid items={gridItems} initial={12} step={8} cols={4} />
+          <ProductGrid items={gridItems} initial={24} step={24} cols={4} />
         </div>
       </section>
     </div>

@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "supabase": {
+      "type": "local",
+      "command": ["npx", "-y", "@supabase/mcp-server-supabase@latest", "--access-token", "${SUPABASE_ACCESS_TOKEN}", "--project-ref", "${SUPABASE_PROJECT_REF}"],
+      "enabled": true,
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "",
+        "SUPABASE_PROJECT_REF": ""
+      }
+    }
+  }
+}

@@ -99,23 +99,29 @@ const IMAGE_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
+  "image/heic": "heic",
 };
+
+const ALLOWED_MIME_TYPES = Object.keys(IMAGE_MIME) as Array<keyof typeof IMAGE_MIME>;
+const MAX_UPLOAD_SIZE = 8 * 1024 * 1024; // 8MB
 
 /**
  * Store a vendor product photo from an uploaded file. Ownership-checked,
- * 5 MB max. Returns the public URL to save as the product image.
+ * 8 MB max. Returns the public URL and metadata to save as the product image.
  */
 export async function uploadProductImage(
   owner: string,
   vendorId: string,
   data: ArrayBuffer,
   mime: string,
-  size: number
-): Promise<string> {
-  const ext = IMAGE_MIME[mime];
-  if (!ext) throw new Error("Only JPEG, PNG or WebP photos are allowed");
-  if (!Number.isFinite(size) || size <= 0 || size > 5 * 1024 * 1024) {
-    throw new Error("Photo must be under 5 MB");
+  size: number,
+  options?: { blurhash?: string; width?: number; height?: number }
+): Promise<{ url: string; width?: number; height?: number; blurhash?: string }> {
+  if (!ALLOWED_MIME_TYPES.includes(mime)) {
+    throw new Error("Only JPEG, PNG, WebP, or HEIC photos are allowed");
+  }
+  if (!Number.isFinite(size) || size <= 0 || size > MAX_UPLOAD_SIZE) {
+    throw new Error("Photo must be under 8 MB");
   }
   const owned = await listOwnVendors(owner);
   const ok = (owned as unknown as { id?: string }[]).some((v) => v?.id === vendorId);
@@ -127,13 +133,20 @@ export async function uploadProductImage(
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID().slice(0, 8)
       : Math.random().toString(36).slice(2, 10);
+  const ext = IMAGE_MIME[mime];
   const path = `${owner}/${vendorId}/${Date.now().toString(36)}-${rand}.${ext}`;
   const { error } = await supabase.storage
     .from("product-images")
     .upload(path, Buffer.from(data), { contentType: mime, upsert: false });
   if (error) throw new Error(error.message);
   const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
-  return pub.publicUrl;
+
+  return {
+    url: pub.publicUrl,
+    width: options?.width,
+    height: options?.height,
+    blurhash: options?.blurhash,
+  };
 }
 
 export function listVendorProducts(owner: string, vendorId: string) {

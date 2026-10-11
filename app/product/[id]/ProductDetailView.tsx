@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCart } from "@/lib/cart";
@@ -22,6 +21,7 @@ import {
   safeImage,
   type Product,
 } from "@/lib/mock";
+import OptimizedImage from "@/components/OptimizedImage";
 import { wilayaName } from "@/lib/wilayas";
 import ProductGrid from "@/components/ProductGrid";
 import {
@@ -92,6 +92,8 @@ export default function ProductDetailView({
   // Live products show real boutique data only — never mock filler
   // (fake atelier codes, invented dye names). Memorized rule.
   const isLive = !!live;
+  const atelier = seller ? (SELLER_ATELIER[seller.id] ?? "99-XXX") : "99-XXX";
+  const code = atelier.split("-")[0];
   const vendorHref = seller ? `/seller/${seller.id}` : isLive ? `/seller/${live.vendorSlug}` : "/seller";
   const monogram = seller
     ? code
@@ -109,8 +111,6 @@ export default function ProductDetailView({
     if (!live) return stockOf(i, product.sizes.length);
     return liveVariantFor(s)?.stock_quantity ?? 0;
   };
-  const atelier = seller ? (SELLER_ATELIER[seller.id] ?? "99-XXX") : "99-XXX";
-  const code = atelier.split("-")[0];
 
   const [selected, setSelected] = useState(0);
   const [size, setSize] = useState<string | null>(
@@ -283,12 +283,16 @@ export default function ProductDetailView({
                         : "ring-1 ring-border-rule opacity-60 hover:opacity-100"
                     }`}
                   >
-                    <Image
+                    <OptimizedImage
                       src={shot}
                       alt=""
-                      fill
+                      width={96}
+                      height={96}
+                      priority={false}
+                      loading="lazy"
                       sizes="96px"
                       className="w-full h-full object-cover object-center group-hover:opacity-90"
+                      useTransformations={true}
                     />
                     <span className="absolute bottom-1 right-1 font-mono-technical text-[9px] bg-primary text-on-primary px-1">
                       {String(i + 1).padStart(2, "0")}
@@ -299,12 +303,16 @@ export default function ProductDetailView({
 
               {/* Main hero canvas */}
               <div className="relative w-full aspect-[3/4] bg-surface-paper overflow-hidden select-none">
-                <Image
+                <OptimizedImage
                   src={shots[selected]}
                   alt={product.name}
-                  fill
+                  width={1200}
+                  height={900}
+                  priority={true}
+                  loading="eager"
                   sizes="(min-width:1024px) 58vw, 100vw"
                   className="object-cover object-center"
+                  useTransformations={true}
                 />
 
                 {/* Authentic verification stamp */}
@@ -399,14 +407,18 @@ export default function ProductDetailView({
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-md">
-                  <figure className="relative aspect-[4/5] bg-surface-container overflow-hidden group">
-                    <Image
-                      src={shots[1]}
-                      alt=""
-                      fill
-                      sizes="(min-width:640px) 40vw, 100vw"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+<figure className="relative aspect-[4/5] bg-surface-container overflow-hidden group">
+                      <OptimizedImage
+                        src={shots[1]}
+                        alt=""
+                        width={800}
+                        height={1000}
+                        priority={false}
+                        loading="lazy"
+                        sizes="(min-width:640px) 40vw, 100vw"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        useTransformations={true}
+                      />
                     <figcaption className="absolute bottom-0 inset-x-0 p-unit-md bg-gradient-to-t from-primary/80 to-transparent text-on-primary">
                       <span className="font-mono-technical text-label-caps-sm uppercase">
                         {t("pdp.macro")}
@@ -417,12 +429,16 @@ export default function ProductDetailView({
                     </figcaption>
                   </figure>
                   <figure className="relative aspect-[4/5] bg-surface-container overflow-hidden group">
-                    <Image
+                    <OptimizedImage
                       src={shots[2]}
                       alt=""
-                      fill
+                      width={800}
+                      height={1000}
+                      priority={false}
+                      loading="lazy"
                       sizes="(min-width:640px) 40vw, 100vw"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      useTransformations={true}
                     />
                     <figcaption className="absolute bottom-0 inset-x-0 p-unit-md bg-gradient-to-t from-primary/80 to-transparent text-on-primary">
                       <span className="font-mono-technical text-label-caps-sm uppercase">

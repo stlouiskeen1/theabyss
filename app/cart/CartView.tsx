@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { lineDisplay, useCart, type CartLine } from "@/lib/cart";
 import { useLang } from "@/lib/i18n";
 import { formatPrice, getProduct, getSeller } from "@/lib/mock";
+import OptimizedImage from "@/components/OptimizedImage";
 import { deliveryFeeFor } from "@/lib/wilayas";
 import CheckoutStepper from "@/components/CheckoutStepper";
 import {
@@ -167,10 +168,15 @@ export default function CartView() {
                             >
                               <div className="w-full sm:w-28 h-36 bg-surface-container flex-shrink-0 overflow-hidden">
                                 {product.image ? (
-                                  <img
+                                  <OptimizedImage
                                     src={product.image}
                                     alt={product.name}
+                                    width={112}
+                                    height={144}
+                                    priority={false}
+                                    loading="lazy"
                                     className="w-full h-full object-cover"
+                                    useTransformations={true}
                                   />
                                 ) : null}
                               </div>

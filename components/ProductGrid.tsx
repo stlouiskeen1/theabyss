@@ -21,8 +21,8 @@ const COLS: Record<number, string> = {
 
 export default function ProductGrid({
   items,
-  initial = 12,
-  step = 8,
+  initial = 24,
+  step = 24,
   loadMore = true,
   cols = 4,
 }: Props) {

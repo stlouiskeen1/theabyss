@@ -19,6 +19,7 @@ import type { NextConfig } from "next";
 // public/images/ and set slots in lib/mock.ts (see IMAGE_MAP there).
 const nextConfig: NextConfig = {
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
@@ -33,6 +34,14 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         port: "",
         pathname: "/storage/v1/object/public/**",
+        search: "",
+      },
+      // Supabase Image Transformations (on-the-fly resizing)
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        port: "",
+        pathname: "/storage/v1/render/image/public/**",
         search: "",
       },
     ],

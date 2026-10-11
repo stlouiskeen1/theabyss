@@ -18,6 +18,7 @@ import {
   PaymentsIcon,
   VerifiedIcon,
 } from "@/components/ui";
+import OptimizedImage from "@/components/OptimizedImage";
 
 const ALGER_COMMUNES = [
   "Hydra",
@@ -459,10 +460,15 @@ export default function CheckoutView() {
                         >
                           <span className="block h-14 w-14 flex-shrink-0 overflow-hidden bg-surface-container">
                             {product.image ? (
-                              <img
+                              <OptimizedImage
                                 src={product.image}
                                 alt=""
+                                width={56}
+                                height={56}
+                                priority={false}
+                                loading="lazy"
                                 className="h-full w-full object-cover"
+                                useTransformations={true}
                               />
                             ) : null}
                           </span>
