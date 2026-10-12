@@ -9,7 +9,14 @@ import { useWishlist } from "@/lib/wishlist";
 import { SwatchDot, WishlistButton } from "@/components/ui";
 import OptimizedImage from "@/components/OptimizedImage";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: Product;
+  /** First-row cards preload their media at high priority (cosmos pattern). */
+  priority?: boolean;
+}) {
   const { t } = useLang();
   const { add } = useCart();
   const { has, toggle } = useWishlist();
@@ -41,8 +48,9 @@ export default function ProductCard({ product }: { product: Product }) {
             alt={product.name}
             width={800}
             height={1000}
-            priority={false}
-            loading="lazy"
+            priority={priority}
+            fetchPriority={priority ? "high" : undefined}
+            loading={priority ? "eager" : "lazy"}
             sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
             className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
             useTransformations={true}

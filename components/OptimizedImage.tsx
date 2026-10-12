@@ -19,6 +19,8 @@ type OptimizedImageProps = {
   priority?: boolean;
   /** Loading strategy */
   loading?: "lazy" | "eager";
+  /** Hint to the browser's fetch scheduler (first-row tiles: "high"). */
+  fetchPriority?: "high" | "low" | "auto";
   /** CSS class name */
   className?: string;
   /** Object fit */
@@ -45,6 +47,7 @@ export default function OptimizedImage({
   blurPlaceholder,
   priority = false,
   loading = "lazy",
+  fetchPriority,
   className = "",
   objectFit = "cover",
   objectPosition = "center",
@@ -68,7 +71,11 @@ export default function OptimizedImage({
     return "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw";
   }, [sizes, useTransformations]);
 
-  const handleLoad = () => setIsLoading(false);
+  // Reveal on load. (Cosmos gates this on img.decode(), but that adds a
+  // visible delay on every card for no benefit in this app.)
+  const handleLoad = () => {
+    setIsLoading(false);
+  };
   const handleError = () => {
     setHasError(true);
     setIsLoading(false);
@@ -122,6 +129,7 @@ export default function OptimizedImage({
         quality={quality}
         priority={priority}
         loading={loading}
+        fetchPriority={fetchPriority}
         placeholder={blurDataUrl ? "blur" : "empty"}
         blurDataURL={blurDataUrl}
         objectFit={objectFit}

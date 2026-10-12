@@ -85,12 +85,12 @@ export type LiveDetail = {
   images: { id: string; url: string }[];
 };
 
-export function listLiveProducts(category?: string | null, search?: string | null, limit = 60) {
+export function listLiveProducts(category?: string | null, search?: string | null, limit = 60, offset = 0) {
   return call<Json[]>("catalog_products", {
     p_category: category ?? null,
     p_search: search ?? null,
     p_limit: limit,
-    p_offset: 0,
+    p_offset: offset,
   });
 }
 
