@@ -243,6 +243,26 @@ export function setVariantStock(owner: string, variantId: string, stock: number)
   });
 }
 
+export function updateProductImageMeta(
+  owner: string,
+  vendorId: string,
+  productId: string,
+  imageUrl: string,
+  blurhash: string | null,
+  width: number | null,
+  height: number | null
+) {
+  return call<boolean>("vendor_product_image_update_meta", {
+    p_owner: owner,
+    p_vendor_id: vendorId,
+    p_product_id: productId,
+    p_image_url: imageUrl,
+    p_blurhash: blurhash,
+    p_width: width,
+    p_height: height,
+  });
+}
+
 export function getVendorAnalytics(owner: string, vendorId: string, days = 30) {
   return call<Json>("vendor_analytics", {
     p_owner: owner,

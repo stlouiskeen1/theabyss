@@ -985,6 +985,18 @@ export type Database = {
         Args: { p_owner: string; p_product_id: string }
         Returns: boolean
       }
+      vendor_product_image_update_meta: {
+        Args: {
+          p_blurhash?: string
+          p_height?: number
+          p_image_url: string
+          p_owner: string
+          p_product_id: string
+          p_vendor_id: string
+          p_width?: number
+        }
+        Returns: boolean
+      }
       vendor_product_upsert:
         | {
             Args: {

@@ -12,6 +12,9 @@ export async function POST(req: Request) {
     const owner = await sessionOwnerId();
     const form = await req.formData().catch(() => null);
     const vendorId = form?.get("vendorId");
+    const blurhash = (form?.get("blurhash") as string) || undefined;
+    const width = form?.get("width") ? parseInt(form.get("width") as string, 10) : undefined;
+    const height = form?.get("height") ? parseInt(form.get("height") as string, 10) : undefined;
 
     if (typeof vendorId !== "string" || !vendorId) {
       return NextResponse.json({ error: "vendorId is required" }, { status: 400 });
@@ -57,7 +60,11 @@ export async function POST(req: Request) {
       const results = await Promise.all(
         files.map(async (file, index) => {
           const arrayBuffer = await file.arrayBuffer();
-          const result = await uploadProductImage(owner, vendorId, arrayBuffer, file.type, file.size);
+          const result = await uploadProductImage(owner, vendorId, arrayBuffer, file.type, file.size, {
+            blurhash,
+            width,
+            height,
+          });
           return { ...result, index };
         })
       );

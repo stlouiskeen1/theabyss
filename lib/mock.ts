@@ -124,6 +124,7 @@ export const safeImage = (src: string | undefined | null, seed: string, w = 800,
   if (src.startsWith("/")) return src;
   try {
     const host = new URL(src).hostname.toLowerCase();
+    // Allow picsum.photos, all Supabase domains (Storage + Image Transformations)
     if (host === "picsum.photos" || host.endsWith(".supabase.co")) return src;
   } catch {
     /* malformed URL → placeholder below */

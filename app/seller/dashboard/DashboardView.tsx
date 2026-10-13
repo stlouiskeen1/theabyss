@@ -396,10 +396,33 @@ export default function DashboardView() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ ...payload, vendorId: activeId }),
                         });
-                        const data = (await readJson(res)) as { error?: string };
+                        const data = (await readJson(res)) as { product?: { id: string }; error?: string };
                         if (!res.ok) throw new Error(data.error ?? String(res.status));
                         clearDraft("seller-product:new");
                         if (editing) clearDraft(`seller-product:${editing.id}`);
+
+                        // Update image metadata (blurhash, dimensions) after product create/update
+                        const productId = data.product?.id ?? editing?.id;
+                        if (productId && payload.imageUrl) {
+                          try {
+                            await fetch("/api/seller/products/image-meta", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                vendorId: activeId,
+                                productId,
+                                imageUrl: payload.imageUrl,
+                                blurhash: payload.blurhash ?? null,
+                                width: payload.width ?? null,
+                                height: payload.height ?? null,
+                              }),
+                            });
+                          } catch {
+                            // Non-fatal: metadata update failed but product was saved
+                            console.warn("Image metadata update failed");
+                          }
+                        }
+
                         setShowNew(false);
                         setEditing(null);
                         refreshProducts();
@@ -696,21 +719,25 @@ function ProductForm({
   onCancel: () => void;
 }) {
   // Restore in-progress edits after any reload (see lib/draft).
-  const [restored] = useState(() =>
-    loadDraft<{
-      name: string;
-      slug: string;
-      touched: boolean;
-      price: string;
-      brand: string;
-      description: string;
-      imageUrl: string;
-      status: string;
-      categoryId: string;
-      colorIds: string[];
-      measurementIds: string[];
-    }>(draftKey)
-  );
+type ProductDraft = {
+    name: string;
+    slug: string;
+    touched: boolean;
+    price: string;
+    brand: string;
+    description: string;
+    imageUrl: string;
+    imageBlurhash: string;
+    imageWidth: number | null;
+    imageHeight: number | null;
+    status: string;
+    categoryId: string;
+    colorIds: string[];
+    measurementIds: string[];
+  };
+
+  const rawDraft = loadDraft<ProductDraft>(draftKey);
+  const restored = rawDraft as ProductDraft | null;
   const [name, setName] = useState(restored?.name ?? initial?.name ?? "");
   const [slug, setSlug] = useState(restored?.slug ?? initial?.slug ?? "");
   const [touched, setTouched] = useState(restored?.touched ?? !!initial);
@@ -718,6 +745,9 @@ function ProductForm({
   const [brand, setBrand] = useState(restored?.brand ?? initial?.brand ?? "");
   const [description, setDescription] = useState(restored?.description ?? initial?.description ?? "");
   const [imageUrl, setImageUrl] = useState(restored?.imageUrl ?? initial?.images?.[0]?.url ?? "");
+  const [imageBlurhash, setImageBlurhash] = useState(restored?.imageBlurhash ?? "");
+  const [imageWidth, setImageWidth] = useState<number | null>(restored?.imageWidth ?? null);
+  const [imageHeight, setImageHeight] = useState<number | null>(restored?.imageHeight ?? null);
   const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(restored?.categoryId ?? initial?.category_id ?? "");
   const [colorIds, setColorIds] = useState<string[]>(restored?.colorIds ?? []);
@@ -728,18 +758,58 @@ function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  /** Generate blurhash + dimensions from a File (client-side). */
+  const getImageMeta = (file: File): Promise<{ blurhash: string; width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas context failed"));
+        const maxDim = 32;
+        const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let blurhash: string;
+        try {
+          // dynamic import to avoid SSR issues
+          import("blurhash").then(({ encode }) => {
+            blurhash = encode(imageData.data, canvas.width, canvas.height, 4, 3);
+            resolve({ blurhash, width: img.width, height: img.height });
+          }).catch(reject);
+        } catch {
+          resolve({ blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj", width: img.width, height: img.height });
+        }
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const uploadFile = async (file: File) => {
     setUploading(true);
     setUploadError(null);
     try {
+      // Generate blurhash + dimensions client-side
+      const { blurhash, width, height } = await getImageMeta(file);
+
       const form = new FormData();
       form.append("file", file);
       form.append("vendorId", vendorId);
+      form.append("blurhash", blurhash);
+      form.append("width", width.toString());
+      form.append("height", height.toString());
+
       const res = await fetch("/api/seller/upload", { method: "POST", body: form });
       const data = (await readJson(res)) as { url?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       if (!data.url) throw new Error("Upload failed");
       setImageUrl(data.url);
+      setImageBlurhash(blurhash);
+      setImageWidth(width);
+      setImageHeight(height);
     } catch (e) {
       setUploadError((e as Error).message);
     } finally {
@@ -774,8 +844,8 @@ function ProductForm({
 
   // Autosave the draft on every keystroke; cleared on successful submit.
   useEffect(() => {
-    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId, colorIds, measurementIds });
-  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId, colorIds, measurementIds]);
+    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, imageBlurhash, imageWidth, imageHeight, status, categoryId, colorIds, measurementIds });
+  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, imageBlurhash, imageWidth, imageHeight, status, categoryId, colorIds, measurementIds]);
 
   return (
     <form
@@ -791,6 +861,9 @@ function ProductForm({
           basePrice: Number(price),
           status,
           imageUrl: imageUrl.trim() || null,
+          blurhash: imageBlurhash || null,
+          width: imageWidth,
+          height: imageHeight,
           categoryId: categoryId || null,
           // Sizes/colors only apply at creation (later: manage them in Stock).
           ...(!initial
