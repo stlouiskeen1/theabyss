@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -188,6 +188,36 @@ export type Database = {
           },
         ]
       }
+      colors: {
+        Row: {
+          created_at: string
+          hex_code: string
+          id: string
+          is_active: boolean
+          name: string
+          name_fr: string | null
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          hex_code: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_fr?: string | null
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          hex_code?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_fr?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
       communes: {
         Row: {
           id: number
@@ -217,11 +247,45 @@ export type Database = {
           },
         ]
       }
+      measurements: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          name_fr: string | null
+          sort_order: number
+          unit: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_fr?: string | null
+          sort_order?: number
+          unit: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_fr?: string | null
+          sort_order?: number
+          unit?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
           product_variant_id: string | null
           quantity: number
+          stock_restored: boolean
           subtotal: number
           unit_price: number
           vendor_order_id: string | null
@@ -230,6 +294,7 @@ export type Database = {
           id?: string
           product_variant_id?: string | null
           quantity: number
+          stock_restored?: boolean
           subtotal: number
           unit_price: number
           vendor_order_id?: string | null
@@ -238,6 +303,7 @@ export type Database = {
           id?: string
           product_variant_id?: string | null
           quantity?: number
+          stock_restored?: boolean
           subtotal?: number
           unit_price?: number
           vendor_order_id?: string | null
@@ -354,27 +420,66 @@ export type Database = {
           },
         ]
       }
+      product_colors: {
+        Row: {
+          color_id: string
+          product_id: string
+        }
+        Insert: {
+          color_id: string
+          product_id: string
+        }
+        Update: {
+          color_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_colors_color_id_fkey"
+            columns: ["color_id"]
+            isOneToOne: false
+            referencedRelation: "colors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_colors_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_images: {
         Row: {
+          blur_placeholder: string | null
+          height: number | null
           id: string
           position: number
           product_id: string | null
           url: string
           variant_id: string | null
+          width: number | null
         }
         Insert: {
+          blur_placeholder?: string | null
+          height?: number | null
           id?: string
           position?: number
           product_id?: string | null
           url: string
           variant_id?: string | null
+          width?: number | null
         }
         Update: {
+          blur_placeholder?: string | null
+          height?: number | null
           id?: string
           position?: number
           product_id?: string | null
           url?: string
           variant_id?: string | null
+          width?: number | null
         }
         Relationships: [
           {
@@ -389,6 +494,36 @@ export type Database = {
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_measurements: {
+        Row: {
+          measurement_id: string
+          product_id: string
+        }
+        Insert: {
+          measurement_id: string
+          product_id: string
+        }
+        Update: {
+          measurement_id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_measurements_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "measurements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_measurements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -775,6 +910,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      catalog_categories: { Args: never; Returns: Json[] }
+      catalog_options: { Args: never; Returns: Json }
+      catalog_product: { Args: { p_slug: string }; Returns: Json }
+      catalog_products: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+        }
+        Returns: Json[]
+      }
+      delivery_fee_for: { Args: { p_subtotal: number }; Returns: number }
       is_admin: { Args: never; Returns: boolean }
       order_advance: { Args: { p_order_id: string }; Returns: undefined }
       order_cancel: { Args: { p_order_id: string }; Returns: undefined }
@@ -801,6 +949,107 @@ export type Database = {
         Returns: undefined
       }
       serialize_order: { Args: { p_order_id: string }; Returns: Json }
+      vendor_analytics: {
+        Args: { p_days?: number; p_owner: string; p_vendor_id: string }
+        Returns: Json
+      }
+      vendor_apply: {
+        Args: {
+          p_commune_id?: number
+          p_description?: string
+          p_name: string
+          p_owner: string
+          p_slug: string
+          p_wilaya_id?: number
+        }
+        Returns: Json
+      }
+      vendor_list_own: { Args: { p_owner: string }; Returns: Json[] }
+      vendor_orders_list: {
+        Args: { p_owner: string; p_vendor_id: string }
+        Returns: Json[]
+      }
+      vendor_owned: {
+        Args: { p_owner: string; p_vendor_id: string }
+        Returns: boolean
+      }
+      vendor_payouts_list: {
+        Args: { p_owner: string; p_vendor_id: string }
+        Returns: Json[]
+      }
+      vendor_product_archive: {
+        Args: { p_owner: string; p_product_id: string }
+        Returns: Json
+      }
+      vendor_product_delete: {
+        Args: { p_owner: string; p_product_id: string }
+        Returns: boolean
+      }
+      vendor_product_upsert:
+        | {
+            Args: {
+              p_base_price?: number
+              p_brand?: string
+              p_category_id?: string
+              p_color?: string
+              p_description?: string
+              p_image_url?: string
+              p_name?: string
+              p_owner: string
+              p_product_id?: string
+              p_sizes?: string[]
+              p_slug?: string
+              p_status?: string
+              p_vendor_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_base_price?: number
+              p_brand?: string
+              p_category_id?: string
+              p_color?: string
+              p_color_ids?: string[]
+              p_description?: string
+              p_image_url?: string
+              p_measurement_ids?: string[]
+              p_name?: string
+              p_owner: string
+              p_product_id?: string
+              p_sizes?: string[]
+              p_slug?: string
+              p_status?: string
+              p_vendor_id: string
+            }
+            Returns: Json
+          }
+      vendor_products_list: {
+        Args: { p_owner: string; p_vendor_id: string }
+        Returns: Json[]
+      }
+      vendor_public_get: { Args: { p_slug: string }; Returns: Json }
+      vendor_stock_set: {
+        Args: { p_owner: string; p_stock: number; p_variant_id: string }
+        Returns: Json
+      }
+      vendor_variant_delete: {
+        Args: { p_owner: string; p_variant_id: string }
+        Returns: boolean
+      }
+      vendor_variant_upsert: {
+        Args: {
+          p_color?: string
+          p_owner: string
+          p_price_override?: number
+          p_product_id: string
+          p_size?: string
+          p_sku?: string
+          p_stock_quantity?: number
+          p_variant_id?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       order_status: "pending" | "confirmed" | "completed" | "cancelled"

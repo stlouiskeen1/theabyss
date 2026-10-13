@@ -62,6 +62,37 @@ type Product = {
 
 type Category = { id: string; slug: string; name_en: string; name_fr: string };
 
+type CatalogColor = {
+  id: string;
+  name: string;
+  name_fr?: string | null;
+  hex_code: string;
+};
+
+type CatalogMeasurement = {
+  id: string;
+  name: string;
+  name_fr?: string | null;
+  unit: string;
+  category: string;
+};
+
+/** Add/remove a UUID from a multi-select list. */
+function toggleId(list: string[], id: string): string[] {
+  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+}
+
+/** Group measurements by their category label, preserving server order. */
+function groupMeasurements(items: CatalogMeasurement[]): [string, CatalogMeasurement[]][] {
+  const groups: [string, CatalogMeasurement[]][] = [];
+  for (const m of items) {
+    const last = groups[groups.length - 1];
+    if (last && last[0] === m.category) last[1].push(m);
+    else groups.push([m.category, [m]]);
+  }
+  return groups;
+}
+
 /** Marketplace visibility: what the buyer actually sees. */
 function visibilityOf(p: Product): { live: boolean; reason: string } {
   if (p.status !== "active") return { live: false, reason: "Hidden — status is " + p.status };
@@ -399,22 +430,40 @@ export default function DashboardView() {
                     }}
                     onToggleActive={async (p) => {
                       try {
-                        const res = await fetch("/api/seller/products", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            action: "update",
-                            vendorId: activeId,
-                            productId: p.id,
-                            name: p.name,
-                            slug: p.slug,
-                            description: p.description,
-                            basePrice: Number(p.base_price),
-                            status: p.status === "active" ? "draft" : "active",
-                          }),
-                        });
-                        const data = (await readJson(res)) as { error?: string };
-                        if (!res.ok) throw new Error(data.error ?? String(res.status));
+                        // Unpublish is a hard delete (keep the DB lean); publish
+                        // is a status flip to "active". Orders on the product
+                        // block the delete (RPC raises has_orders → 409).
+                        if (p.status === "active") {
+                          if (!window.confirm("Unpublish permanently deletes this product. Continue?")) {
+                            return false;
+                          }
+                          const res = await fetch("/api/seller/products", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "delete", productId: p.id }),
+                          });
+                          const data = (await readJson(res)) as { error?: string };
+                          if (!res.ok) {
+                            throw new Error(data.error === "has_orders" ? "Has orders — archive instead." : data.error ?? String(res.status));
+                          }
+                        } else {
+                          const res = await fetch("/api/seller/products", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "update",
+                              vendorId: activeId,
+                              productId: p.id,
+                              name: p.name,
+                              slug: p.slug,
+                              description: p.description,
+                              basePrice: Number(p.base_price),
+                              status: "active",
+                            }),
+                          });
+                          const data = (await readJson(res)) as { error?: string };
+                          if (!res.ok) throw new Error(data.error ?? String(res.status));
+                        }
                         refreshProducts();
                         return true;
                       } catch (e) {
@@ -658,8 +707,8 @@ function ProductForm({
       imageUrl: string;
       status: string;
       categoryId: string;
-      sizesText: string;
-      color: string;
+      colorIds: string[];
+      measurementIds: string[];
     }>(draftKey)
   );
   const [name, setName] = useState(restored?.name ?? initial?.name ?? "");
@@ -671,8 +720,10 @@ function ProductForm({
   const [imageUrl, setImageUrl] = useState(restored?.imageUrl ?? initial?.images?.[0]?.url ?? "");
   const [status, setStatus] = useState(restored?.status ?? initial?.status ?? "draft");
   const [categoryId, setCategoryId] = useState(restored?.categoryId ?? initial?.category_id ?? "");
-  const [sizesText, setSizesText] = useState(restored?.sizesText ?? "");
-  const [color, setColor] = useState(restored?.color ?? "");
+  const [colorIds, setColorIds] = useState<string[]>(restored?.colorIds ?? []);
+  const [measurementIds, setMeasurementIds] = useState<string[]>(restored?.measurementIds ?? []);
+  const [colorOptions, setColorOptions] = useState<CatalogColor[] | null>(null);
+  const [measurementOptions, setMeasurementOptions] = useState<CatalogMeasurement[] | null>(null);
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -704,6 +755,18 @@ function ProductForm({
         if (live && res.ok) setCategories(data.categories ?? []);
       })
       .catch(() => {});
+    fetch("/api/seller/options", { cache: "no-store" })
+      .then(async (res) => {
+        const data = (await readJson(res)) as {
+          colors?: CatalogColor[];
+          measurements?: CatalogMeasurement[];
+        };
+        if (live && res.ok) {
+          setColorOptions(data.colors ?? []);
+          setMeasurementOptions(data.measurements ?? []);
+        }
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -711,8 +774,8 @@ function ProductForm({
 
   // Autosave the draft on every keystroke; cleared on successful submit.
   useEffect(() => {
-    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId, sizesText, color });
-  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId, sizesText, color]);
+    saveDraft(draftKey, { name, slug, touched, price, brand, description, imageUrl, status, categoryId, colorIds, measurementIds });
+  }, [draftKey, name, slug, touched, price, brand, description, imageUrl, status, categoryId, colorIds, measurementIds]);
 
   return (
     <form
@@ -732,11 +795,8 @@ function ProductForm({
           // Sizes/colors only apply at creation (later: manage them in Stock).
           ...(!initial
             ? {
-                sizes: sizesText
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-                color: color.trim() || null,
+                colorIds,
+                measurementIds,
               }
             : null),
         });
@@ -851,33 +911,81 @@ function ProductForm({
         </p>
       </div>
       {!initial && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-unit-sm">
-          <label className="flex flex-col gap-unit-2xs">
-            <span className={labelCls}>Sizes (comma separated)</span>
-            <input
-              value={sizesText}
-              onChange={(e) => setSizesText(e.target.value)}
-              placeholder="e.g. 38, 39, 40, 41 or S, M, L"
-              maxLength={200}
-              className={inputCls}
-            />
-          </label>
-          <label className="flex flex-col gap-unit-2xs">
-            <span className={labelCls}>Color (optional)</span>
-            <input
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              placeholder="e.g. Noir"
-              maxLength={40}
-              className={inputCls}
-            />
-          </label>
+        <div className="flex flex-col gap-unit-sm">
+          <fieldset className="flex flex-col gap-unit-2xs">
+            <span className={labelCls}>Sizes (measurements)</span>
+            <p className="font-mono-technical text-[11px] text-text-muted">
+              Each selected size becomes its own stock line. Leave empty for one-size.
+            </p>
+            <div className="flex flex-col gap-unit-xs">
+              {groupMeasurements(measurementOptions ?? []).map(([group, items]) => (
+                <div key={group} className="flex flex-wrap items-center gap-unit-2xs">
+                  <span className="font-mono-technical text-[11px] uppercase text-text-muted w-14 shrink-0">
+                    {group}
+                  </span>
+                  {items.map((m) => {
+                    const checked = measurementIds.includes(m.id);
+                    return (
+                      <label
+                        key={m.id}
+                        className={`font-mono-technical text-[11px] uppercase px-unit-2xs py-unit-2xs rounded border cursor-pointer transition-colors ${
+                          checked
+                            ? "border-primary text-primary bg-primary/10"
+                            : "border-border-rule text-text-muted hover:border-primary/50 hover:text-primary"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={checked}
+                          onChange={() => setMeasurementIds((prev) => toggleId(prev, m.id))}
+                        />
+                        {m.name_fr ?? m.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
+              {measurementOptions !== null && measurementOptions.length === 0 && (
+                <span className="font-mono-technical text-[11px] text-text-muted">No sizes available yet.</span>
+              )}
+            </div>
+          </fieldset>
+          <fieldset className="flex flex-col gap-unit-2xs">
+            <span className={labelCls}>Colors</span>
+            <div className="flex flex-wrap gap-unit-2xs">
+              {(colorOptions ?? []).map((c) => {
+                const checked = colorIds.includes(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    className={`font-mono-technical text-[11px] uppercase px-unit-2xs py-unit-2xs rounded border cursor-pointer transition-colors inline-flex items-center gap-unit-2xs ${
+                      checked
+                        ? "border-primary text-primary bg-primary/10"
+                        : "border-border-rule text-text-muted hover:border-primary/50 hover:text-primary"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked}
+                      onChange={() => setColorIds((prev) => toggleId(prev, c.id))}
+                    />
+                    <span
+                      aria-hidden
+                      className="h-3 w-3 rounded-full border border-border-rule shrink-0"
+                      style={{ background: c.hex_code }}
+                    />
+                    {c.name_fr ?? c.name}
+                  </label>
+                );
+              })}
+              {colorOptions !== null && colorOptions.length === 0 && (
+                <span className="font-mono-technical text-[11px] text-text-muted">No colors available yet.</span>
+              )}
+            </div>
+          </fieldset>
         </div>
-      )}
-      {!initial && (
-        <p className="font-mono-technical text-[11px] text-text-muted">
-          Leave sizes empty for a single one-size item. Each size becomes its own stock line.
-        </p>
       )}
       {error && (
         <p role="alert" className="font-mono-technical text-mono-technical text-accent-crimson">
@@ -1248,7 +1356,7 @@ function ProductsTab(props: {
                       ok,
                       ok
                         ? p.status === "active"
-                          ? "Unpublished ✓"
+                          ? "Deleted ✓"
                           : "Published ✓ — add stock if it still shows Hidden"
                         : "Failed — see error above"
                     );

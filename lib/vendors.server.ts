@@ -89,10 +89,38 @@ export type ProductUpsertInput = {
   categoryId?: string | null;
   sizes?: string[] | null;
   color?: string | null;
+  colorIds?: string[] | null;
+  measurementIds?: string[] | null;
 };
 
 export function listCategories() {
   return call<Json[]>("catalog_categories", {});
+}
+
+export type CatalogColor = {
+  id: string;
+  name: string;
+  name_fr: string | null;
+  hex_code: string;
+  sort_order: number;
+};
+
+export type CatalogMeasurement = {
+  id: string;
+  name: string;
+  name_fr: string | null;
+  unit: string;
+  category: string;
+  sort_order: number;
+};
+
+export type CatalogOptions = {
+  colors: CatalogColor[];
+  measurements: CatalogMeasurement[];
+};
+
+export function listCatalogOptions() {
+  return call<CatalogOptions>("catalog_options", {});
 }
 
 const IMAGE_MIME: Record<string, string> = {
@@ -168,6 +196,8 @@ export function upsertProduct(owner: string, vendorId: string, input: ProductUps
     p_category_id: input.categoryId ?? null,
     p_sizes: input.sizes ?? null,
     p_color: input.color ?? null,
+    p_color_ids: input.colorIds ?? null,
+    p_measurement_ids: input.measurementIds ?? null,
   });
 }
 
