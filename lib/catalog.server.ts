@@ -54,6 +54,10 @@ export type LiveListRow = {
   vendor_name: string;
   vendor_slug: string;
   image_url?: string | null;
+  /** Cover-image LQIP (blurhash) and intrinsic size, from product_images. */
+  image_blurhash?: string | null;
+  image_width?: number | null;
+  image_height?: number | null;
   stock_total: number;
   created_at: string;
 };
@@ -82,7 +86,13 @@ export type LiveDetail = {
     created_at: string;
   };
   variants: LiveVariant[];
-  images: { id: string; url: string }[];
+  images: {
+    id: string;
+    url: string;
+    width?: number | null;
+    height?: number | null;
+    blur_placeholder?: string | null;
+  }[];
 };
 
 export function listLiveProducts(category?: string | null, search?: string | null, limit = 60, offset = 0) {
@@ -128,6 +138,9 @@ export function toMockProduct(row: LiveListRow): Product {
     subcategory: "all",
     sizes: ["OS"],
     imageUrls: [row.image_url ?? placeholder(`product-${row.slug}`, 800, 1000)],
+    imageBlurhash: row.image_blurhash ?? undefined,
+    imageWidth: row.image_width ?? undefined,
+    imageHeight: row.image_height ?? undefined,
     swatches: [],
     reviews: 0,
   };
@@ -145,6 +158,7 @@ export function toMockProductDetail(detail: LiveDetail): {
     detail.images.length > 0
       ? detail.images.map((i) => i.url)
       : [placeholder(`product-${p.slug}`, 800, 1000)];
+  const cover = detail.images[0];
   return {
     product: {
       id: p.slug,
@@ -159,6 +173,9 @@ export function toMockProductDetail(detail: LiveDetail): {
       subcategory: "all",
       sizes: detail.variants.map((v) => v.size || "OS"),
       imageUrls: images,
+      imageBlurhash: cover?.blur_placeholder ?? undefined,
+      imageWidth: cover?.width ?? undefined,
+      imageHeight: cover?.height ?? undefined,
       swatches: [],
       reviews: 0,
     },

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useMemo } from "react";
-import { supabaseImageLoader, generateSizes } from "@/lib/supabase-image-loader";
+import { supabaseImageLoader, generateSizes, isTransformable } from "@/lib/supabase-image-loader";
 
 type OptimizedImageProps = {
   /** Image source URL (Supabase Storage, local path, or external) */
@@ -58,12 +58,20 @@ export default function OptimizedImage({
 }: OptimizedImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  // Supabase Image Transformations are a paid, feature-gated capability. When
+  // they are off, the render endpoint answers 403 and the photo never loads.
+  // We retry once against the raw Storage object URL before giving up, so
+  // seller-uploaded images work on any Supabase plan.
+  const [usePlainSource, setUsePlainSource] = useState(false);
 
   const effectiveLoader = useMemo(() => {
+    if (usePlainSource) return undefined;
     if (loader) return loader;
     if (useTransformations) return supabaseImageLoader;
     return undefined;
-  }, [loader, useTransformations]);
+  }, [loader, useTransformations, usePlainSource]);
+
+  const effectiveSrc = usePlainSource ? src : src;
 
   const effectiveSizes = useMemo(() => {
     if (sizes) return sizes;
@@ -77,6 +85,12 @@ export default function OptimizedImage({
     setIsLoading(false);
   };
   const handleError = () => {
+    // First failure on a transformable source → retry untransformed.
+    if (!usePlainSource && useTransformations && isTransformable(src)) {
+      setUsePlainSource(true);
+      setIsLoading(true);
+      return;
+    }
     setHasError(true);
     setIsLoading(false);
   };
@@ -120,7 +134,8 @@ export default function OptimizedImage({
   return (
     <div className={`relative overflow-hidden ${className}`} style={{ width, height }}>
       <Image
-        src={src}
+        key={usePlainSource ? "plain" : "transformed"}
+        src={effectiveSrc}
         alt={alt}
         width={width}
         height={height}

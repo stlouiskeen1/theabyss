@@ -163,9 +163,16 @@ export async function uploadProductImage(
       : Math.random().toString(36).slice(2, 10);
   const ext = IMAGE_MIME[mime];
   const path = `${owner}/${vendorId}/${Date.now().toString(36)}-${rand}.${ext}`;
+  // One-year immutable cache: the object path is unique per upload, so it can
+  // never go stale. Must be a valid Cache-Control directive string — a bare
+  // "31536000" is stored verbatim by Supabase and ignored by browsers.
   const { error } = await supabase.storage
     .from("product-images")
-    .upload(path, Buffer.from(data), { contentType: mime, upsert: false, cacheControl: "31536000" });
+    .upload(path, Buffer.from(data), {
+      contentType: mime,
+      upsert: false,
+      cacheControl: "public, max-age=31536000, immutable",
+    });
   if (error) throw new Error(error.message);
   const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
 

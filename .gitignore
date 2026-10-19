@@ -57,3 +57,6 @@ next-env.d.ts
 # Supabase db dump artifacts (regenerate with `supabase db dump`)
 /dump.sql
 /supabase/schema.sql
+
+# local dev server log
+/dev.log

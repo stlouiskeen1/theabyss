@@ -22,6 +22,7 @@ import {
   type Product,
 } from "@/lib/mock";
 import OptimizedImage from "@/components/OptimizedImage";
+import { blurhashToDataUrl } from "@/lib/blurhash-placeholder";
 import { wilayaName } from "@/lib/wilayas";
 import ProductGrid from "@/components/ProductGrid";
 import {
@@ -145,6 +146,9 @@ export default function ProductDetailView({
   );
 
   const related = useMemo(() => getRelated(product, 6), [product]);
+
+  // BlurHash LQIP for the cover shot (decoded once, memoised).
+  const lqip = useMemo(() => blurhashToDataUrl(product.imageBlurhash), [product.imageBlurhash]);
 
   const originalPrice = product.originalPrice;
   const isSale = typeof originalPrice === "number";
@@ -301,13 +305,14 @@ export default function ProductDetailView({
                 ))}
               </div>
 
-              {/* Main hero canvas */}
+                {/* Main hero canvas */}
               <div className="relative w-full aspect-[3/4] bg-surface-paper overflow-hidden select-none">
                 <OptimizedImage
                   src={shots[selected]}
                   alt={product.name}
-                  width={1200}
-                  height={900}
+                  width={product.imageWidth ?? 1200}
+                  height={product.imageHeight ?? 900}
+                  blurPlaceholder={selected === 0 ? lqip : undefined}
                   priority={true}
                   loading="eager"
                   sizes="(min-width:1024px) 58vw, 100vw"

@@ -5,6 +5,12 @@
  * Docs: https://supabase.com/docs/guides/storage/image-transformations
  *
  * Format: /storage/v1/render/image/public/<bucket>/<path>?width=<w>&height=<h>&quality=<q>&format=<fmt>
+ *
+ * NOTE: Image Transformations are a paid Supabase feature and must be enabled
+ * on the project. When they are not, the render endpoint answers 403
+ * FeatureNotEnabled and EVERY seller-uploaded photo breaks. `OptimizedImage`
+ * therefore falls back to the plain object URL on error — see
+ * `isTransformable()` below and the retry logic in that component.
  */
 export function supabaseImageLoader({
   src,
@@ -37,6 +43,17 @@ export function supabaseImageLoader({
 
   // For other URLs (picsum.photos, local, etc.), return as-is
   return src;
+}
+
+/**
+ * True when `src` is a Supabase Storage object that `supabaseImageLoader`
+ * would rewrite to the (feature-gated) render endpoint. Used by
+ * `OptimizedImage` to decide whether an onError retry with the untransformed
+ * URL is worth attempting.
+ */
+export function isTransformable(src: string): boolean {
+  if (!src.startsWith("http")) return false;
+  return /^https:\/\/[^.]+\.supabase\.co\/storage\/v1\/object\/public\//.test(src);
 }
 
 /** Generate responsive sizes string for common breakpoints. */

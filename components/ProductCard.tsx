@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useLang, promoLabelKey, subcategoryLabelKey } from "@/lib/i18n";
 import { formatPrice, getSeller, safeImage, type Product } from "@/lib/mock";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
+import { blurhashToDataUrl } from "@/lib/blurhash-placeholder";
 import { SwatchDot, WishlistButton } from "@/components/ui";
 import OptimizedImage from "@/components/OptimizedImage";
 
@@ -22,6 +23,8 @@ export default function ProductCard({
   const { has, toggle } = useWishlist();
   const [colorway, setColorway] = useState(0);
   const seller = getSeller(product.sellerId);
+  // BlurHash LQIP for the cover photo — decoded once and memoised.
+  const lqip = useMemo(() => blurhashToDataUrl(product.imageBlurhash), [product.imageBlurhash]);
   // Live products need a real variant SKU, which is only known on the PDP —
   // so their card actions route there instead of quick-adding blindly.
   const isLive = product.sellerId.startsWith("live-vendor:");
@@ -46,8 +49,9 @@ export default function ProductCard({
           <OptimizedImage
             src={safeImage(product.imageUrls[colorway], `card-${product.id}`, 800, 1000)}
             alt={product.name}
-            width={800}
-            height={1000}
+            width={product.imageWidth ?? 800}
+            height={product.imageHeight ?? 1000}
+            blurPlaceholder={lqip}
             priority={priority}
             fetchPriority={priority ? "high" : undefined}
             loading={priority ? "eager" : "lazy"}

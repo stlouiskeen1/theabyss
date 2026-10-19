@@ -39,6 +39,15 @@ export type Product = {
   sizes: string[];
   /** Product photos (square). [0] = cover everywhere; [1],[2] = extra PDP angles. */
   imageUrls: string[];
+  /**
+   * BlurHash LQIP for `imageUrls[0]` (the cover). Lets the grid paint a
+   * blurred placeholder instead of an empty box while the photo loads.
+   * Live rows get this from product_images.blur_placeholder; mock rows omit it.
+   */
+  imageBlurhash?: string;
+  /** Intrinsic pixel size of `imageUrls[0]`, used to reserve layout space. */
+  imageWidth?: number;
+  imageHeight?: number;
   swatches: string[];
   promo?: Promo;
   reviews: number;
