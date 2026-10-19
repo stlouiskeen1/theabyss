@@ -53,3 +53,7 @@ next-env.d.ts
 
 # Supabase local project metadata
 /supabase/.temp/
+
+# Supabase db dump artifacts (regenerate with `supabase db dump`)
+/dump.sql
+/supabase/schema.sql
