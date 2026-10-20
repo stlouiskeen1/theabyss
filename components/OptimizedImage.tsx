@@ -29,6 +29,8 @@ type OptimizedImageProps = {
   objectPosition?: string;
   /** Custom sizes attribute */
   sizes?: string;
+  /** Fill the parent element (parent must be relative with an explicit size) */
+  fill?: boolean;
   /** Custom loader function */
   loader?: (props: { src: string; width: number; quality?: number }) => string;
   /** Quality for Supabase transformations (1-100) */
@@ -52,6 +54,7 @@ export default function OptimizedImage({
   objectFit = "cover",
   objectPosition = "center",
   sizes,
+  fill = false,
   loader,
   quality = 80,
   useTransformations = true,
@@ -104,8 +107,8 @@ export default function OptimizedImage({
   if (hasError && src.startsWith("http")) {
     return (
       <div
-        className={`relative overflow-hidden ${className}`}
-        style={{ width, height }}
+        className={`relative overflow-hidden ${fill ? "w-full h-full" : ""} ${className}`}
+        style={fill ? undefined : { width, height }}
         aria-hidden="true"
       >
         <div
@@ -132,13 +135,16 @@ export default function OptimizedImage({
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`} style={{ width, height }}>
+    <div
+      className={`relative overflow-hidden ${fill ? "w-full h-full" : ""} ${className}`}
+      style={fill ? undefined : { width, height }}
+    >
       <Image
         key={usePlainSource ? "plain" : "transformed"}
         src={effectiveSrc}
         alt={alt}
-        width={width}
-        height={height}
+        {...(!fill ? { width, height } : {})}
+        fill={fill}
         loader={effectiveLoader}
         sizes={effectiveSizes}
         quality={quality}
@@ -156,13 +162,14 @@ export default function OptimizedImage({
       />
       {isLoading && blurDataUrl && (
         <div
-          className="absolute inset-0"
+          className={`absolute inset-0 ${fill ? "w-full h-full" : ""}`}
           style={{
             filter: "blur(20px)",
             transform: "scale(1.1)",
             backgroundImage: `url(${blurDataUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
+            ...(fill ? undefined : { width, height }),
           }}
           aria-hidden="true"
         />

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useLang } from "@/lib/i18n";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/draft";
 import { formatPrice } from "@/lib/mock";
+import { MultiSelect } from "@/components/MultiSelect";
 import { Spinner } from "@/components/ui";
 
 type Vendor = {
@@ -76,22 +77,6 @@ type CatalogMeasurement = {
   unit: string;
   category: string;
 };
-
-/** Add/remove a UUID from a multi-select list. */
-function toggleId(list: string[], id: string): string[] {
-  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
-}
-
-/** Group measurements by their category label, preserving server order. */
-function groupMeasurements(items: CatalogMeasurement[]): [string, CatalogMeasurement[]][] {
-  const groups: [string, CatalogMeasurement[]][] = [];
-  for (const m of items) {
-    const last = groups[groups.length - 1];
-    if (last && last[0] === m.category) last[1].push(m);
-    else groups.push([m.category, [m]]);
-  }
-  return groups;
-}
 
 /** Marketplace visibility: what the buyer actually sees. */
 function visibilityOf(p: Product): { live: boolean; reason: string } {
@@ -984,79 +969,43 @@ type ProductDraft = {
         </p>
       </div>
       {!initial && (
-        <div className="flex flex-col gap-unit-sm">
+        <div className="grid grid-cols-1 gap-unit-sm sm:grid-cols-2">
           <fieldset className="flex flex-col gap-unit-2xs">
             <span className={labelCls}>Sizes (measurements)</span>
+            <MultiSelect
+              options={(measurementOptions ?? []).map((m) => ({
+                id: m.id,
+                label: m.name_fr ?? m.name,
+                group: m.unit === "eu" ? "Shoes" : "Clothing",
+              }))}
+              value={measurementIds}
+              onChange={setMeasurementIds}
+              placeholder="Select sizes"
+              loading={measurementOptions === null}
+              emptyLabel="No sizes available yet."
+              ariaLabel="Sizes"
+            />
             <p className="font-mono-technical text-[11px] text-text-muted">
               Each selected size becomes its own stock line. Leave empty for one-size.
             </p>
-            <div className="flex flex-col gap-unit-xs">
-              {groupMeasurements(measurementOptions ?? []).map(([group, items]) => (
-                <div key={group} className="flex flex-wrap items-center gap-unit-2xs">
-                  <span className="font-mono-technical text-[11px] uppercase text-text-muted w-14 shrink-0">
-                    {group}
-                  </span>
-                  {items.map((m) => {
-                    const checked = measurementIds.includes(m.id);
-                    return (
-                      <label
-                        key={m.id}
-                        className={`font-mono-technical text-[11px] uppercase px-unit-2xs py-unit-2xs rounded border cursor-pointer transition-colors ${
-                          checked
-                            ? "border-primary text-primary bg-primary/10"
-                            : "border-border-rule text-text-muted hover:border-primary/50 hover:text-primary"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={checked}
-                          onChange={() => setMeasurementIds((prev) => toggleId(prev, m.id))}
-                        />
-                        {m.name_fr ?? m.name}
-                      </label>
-                    );
-                  })}
-                </div>
-              ))}
-              {measurementOptions !== null && measurementOptions.length === 0 && (
-                <span className="font-mono-technical text-[11px] text-text-muted">No sizes available yet.</span>
-              )}
-            </div>
           </fieldset>
           <fieldset className="flex flex-col gap-unit-2xs">
             <span className={labelCls}>Colors</span>
-            <div className="flex flex-wrap gap-unit-2xs">
-              {(colorOptions ?? []).map((c) => {
-                const checked = colorIds.includes(c.id);
-                return (
-                  <label
-                    key={c.id}
-                    className={`font-mono-technical text-[11px] uppercase px-unit-2xs py-unit-2xs rounded border cursor-pointer transition-colors inline-flex items-center gap-unit-2xs ${
-                      checked
-                        ? "border-primary text-primary bg-primary/10"
-                        : "border-border-rule text-text-muted hover:border-primary/50 hover:text-primary"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={checked}
-                      onChange={() => setColorIds((prev) => toggleId(prev, c.id))}
-                    />
-                    <span
-                      aria-hidden
-                      className="h-3 w-3 rounded-full border border-border-rule shrink-0"
-                      style={{ background: c.hex_code }}
-                    />
-                    {c.name_fr ?? c.name}
-                  </label>
-                );
-              })}
-              {colorOptions !== null && colorOptions.length === 0 && (
-                <span className="font-mono-technical text-[11px] text-text-muted">No colors available yet.</span>
-              )}
-            </div>
+            <MultiSelect
+              options={(colorOptions ?? []).map((c) => ({
+                id: c.id,
+                label: c.name_fr ?? c.name,
+                swatch: c.hex_code,
+              }))}
+              value={colorIds}
+              onChange={setColorIds}
+              placeholder="Select colors"
+              searchable
+              searchPlaceholder="Search colors…"
+              loading={colorOptions === null}
+              emptyLabel="No colors available yet."
+              ariaLabel="Colors"
+            />
           </fieldset>
         </div>
       )}

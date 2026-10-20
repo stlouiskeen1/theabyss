@@ -39,7 +39,7 @@ export default function ProductCard({
   return (
     <article className="group relative flex flex-col justify-between border border-border-rule bg-surface-paper transition-all duration-150 hover:border-primary">
       {/* Media */}
-      <div className="relative aspect-[4/5] w-full overflow-hidden border-b border-border-rule bg-surface-canvas">
+      <div className="relative aspect-[3/4] w-full overflow-hidden border-b border-border-rule bg-surface-canvas">
         <Link
           href={`/product/${product.id}`}
           aria-label={product.name}
@@ -56,7 +56,10 @@ export default function ProductCard({
             fetchPriority={priority ? "high" : undefined}
             loading={priority ? "eager" : "lazy"}
             sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-            className="object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
+            objectFit="cover"
+            objectPosition="top"
+            fill
+            className="transition-transform duration-300 group-hover:scale-[1.02]"
             useTransformations={true}
           />
           {product.promo || onSale ? (
